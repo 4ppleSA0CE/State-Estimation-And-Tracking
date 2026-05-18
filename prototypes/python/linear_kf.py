@@ -13,7 +13,7 @@ from scipy.stats import chi2
 STATE_DIM = 4
 MEAS_DIM = 2
 
-OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
 
 
 def cv_matrices(
