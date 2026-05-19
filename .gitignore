@@ -3,3 +3,4 @@ PROJECT_PRD.md
 __pycache__/
 prototypes/output/
 *.asv
+.DS_Store

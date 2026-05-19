@@ -1,4 +1,5 @@
 % Radar EKF cross-check against prototypes/python/ekf_synthetic.py reference export.
+% Scenario (x0_truth, Q, R, z) comes from Python EkfScenarioConfig — re-run Python first.
 
 function ekf_synthetic()
     thisDir = fileparts(mfilename('fullpath'));
@@ -17,6 +18,7 @@ function ekf_synthetic()
     x_true = ref.x_true;
     x_est_py = ref.x_est_py;
     P0 = ref.P0;
+    fprintf('Truth x0 (from ref): [%.2f, %.2f, %.2f, %.2f]\n', x_true(1, :));
 
     x0 = initialStateFromRadar(z, dt);
     [x_est, P_hist, y_hist, s_hist] = runFilter(z, F, Q, R, x0, P0, dt);
