@@ -1,6 +1,50 @@
+# Local planning/status docs
 PROJECT_PRD.md
+PROJECT_PLAN.md
+PLAN.md
+PLANNING.md
+*_PLAN.md
+*_PLANNING.md
+docs/planning/
+docs/superpowers/
+.superpowers/
+
+# Python environments and caches
 .venv/
+venv/
 __pycache__/
-prototypes/output/
-*.asv
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+
+# OS/editor noise
 .DS_Store
+
+# MATLAB autosaves and generated state
+*.asv
+*.m~
+*.mlx~
+slprj/
+*.slxc
+
+# Generated local outputs and caches
+prototypes/output/
+output/
+outputs/
+results/
+runs/
+logs/
+.cache/
+.ipynb_checkpoints/
+
+# Local datasets. Download KITTI outside git or under these ignored paths.
+data/kitti_raw/
+data/kitti_tracking/
+data/cache/
+data/**/*.npz
