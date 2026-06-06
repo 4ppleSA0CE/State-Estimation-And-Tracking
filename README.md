@@ -75,6 +75,36 @@ with `pykitti`, convert first-frame-origin WGS84 lat/lon/alt to ENU, and cache
 processed arrays under `data/cache/`. Stage 0 tests must remain runnable without
 KITTI data.
 
+## Stage 1.1 KITTI Loader
+
+The KITTI loader uses local KITTI Raw OXTS data only. KITTI archives and extracted
+sequences must stay under ignored local data paths and must not be committed.
+
+Install the Python prototype dependencies from the repository root:
+
+```bash
+python -m pip install -r prototypes/python/requirements.txt
+```
+
+Download KITTI Raw data from the official login/download page:
+https://www.cvlibs.net/datasets/kitti/raw_data.php
+
+For the initial loader sequence, extract the `2011_09_26` raw data under:
+
+```text
+data/kitti_raw/2011_09_26/
+```
+
+The documented smoke sequence is `2011_09_26_drive_0001_sync`. Run the loader with:
+
+```bash
+python prototypes/python/kitti_loader.py --root data/kitti_raw --date 2011_09_26 --drive 0001
+```
+
+The loader writes deterministic cache files under `data/cache/` and plot output under
+`prototypes/output/`. Pure unit tests run without KITTI data; the integration test
+skips unless the local KITTI Raw sequence exists.
+
 ## Linear CV Kalman filter
 
 ![](./docs/images/linear_kf_trajectory.png)
