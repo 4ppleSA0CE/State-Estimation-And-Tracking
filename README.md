@@ -70,10 +70,9 @@ KITTI data is not required for Stage 0. Keep downloaded datasets local and out o
 Those paths are ignored in `.gitignore`. Do not commit KITTI archives, extracted
 sequences, generated dataset indexes, processed `.npz` streams, or local replay caches.
 
-The next Stage 1 slice is `prototypes/python/kitti_loader.py`: load KITTI Raw OXTS
-with `pykitti`, convert first-frame-origin WGS84 lat/lon/alt to ENU, and cache
-processed arrays under `data/cache/`. Stage 0 tests must remain runnable without
-KITTI data.
+Stage 1 KITTI prototypes use local KITTI Raw OXTS with `pykitti`, convert
+first-frame-origin WGS84 lat/lon/alt to ENU, and cache processed arrays under
+`data/cache/`. Stage 0 tests must remain runnable without KITTI data.
 
 ## Stage 1.1 KITTI Loader
 
@@ -104,6 +103,36 @@ python prototypes/python/kitti_loader.py --root data/kitti_raw --date 2011_09_26
 The loader writes deterministic cache files under `data/cache/` and plot output under
 `prototypes/output/`. Pure unit tests run without KITTI data; the integration test
 skips unless the local KITTI Raw sequence exists.
+
+## Stage 1.2 Frame Plumbing
+
+Stage 1.2 defines the localization frame contract used by the Python KITTI filters:
+
+- `map`: local ENU frame with origin at the first valid GPS fix.
+- `base_link`: vehicle body frame, FLU convention.
+- `imu_link`: KITTI OXTS/IMU frame; colocated with `base_link` by default in Stage 1.
+- `gps_link`: GPS measurement point; colocated with `base_link` by default in Stage 1.
+- `velo_link`: Velodyne frame from KITTI `calib_imu_to_velo.txt`.
+
+GPS and IMU lever arms are configurable even though the Stage 1 default uses zero offsets.
+This keeps the later ESKF GPS measurement model ready for nonzero antenna offsets without
+inventing unsupported KITTI metadata.
+
+## Stage 1.3 High-Rate OXTS Requirement
+
+The synced KITTI Raw folders (`*_sync`) expose OXTS at about 10 Hz. They are useful for
+loader validation, frame tests, low-rate GPS/pose references, and trajectory plots, but
+they are not sufficient for the Stage 1.3 strapdown mechanization or Stage 1.4 ESKF
+predict step.
+
+Before Stage 1.3, install the unsynced/high-rate KITTI Raw OXTS drive under:
+
+```text
+data/kitti_raw/<date>/<date>_drive_<drive>_extract/oxts/
+```
+
+If only `*_sync` data is present, the high-rate setup guard raises a clear blocking
+error instead of silently treating 10 Hz OXTS as high-rate IMU data.
 
 ## Linear CV Kalman filter
 
