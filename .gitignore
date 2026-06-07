@@ -42,6 +42,7 @@ runs/
 logs/
 .cache/
 .ipynb_checkpoints/
+data/
 
 # Local datasets. Download KITTI outside git or under these ignored paths.
 data/kitti_raw/
