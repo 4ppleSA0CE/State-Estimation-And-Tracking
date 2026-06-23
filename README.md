@@ -118,21 +118,36 @@ GPS and IMU lever arms are configurable even though the Stage 1 default uses zer
 This keeps the later ESKF GPS measurement model ready for nonzero antenna offsets without
 inventing unsupported KITTI metadata.
 
-## Stage 1.3 High-Rate OXTS Requirement
+## Stage 1.3 High-Rate OXTS and Mechanization
 
 The synced KITTI Raw folders (`*_sync`) expose OXTS at about 10 Hz. They are useful for
 loader validation, frame tests, low-rate GPS/pose references, and trajectory plots, but
 they are not sufficient for the Stage 1.3 strapdown mechanization or Stage 1.4 ESKF
 predict step.
 
-Before Stage 1.3, install the unsynced/high-rate KITTI Raw OXTS drive under:
+Stage 1.3 uses `prototypes/python/kitti_highrate_loader.py` to parse and cache
+unsynced/high-rate KITTI Raw `*_extract/oxts` packets separately from synced OXTS.
+`prototypes/python/imu_mechanization.py` then runs a nominal strapdown integration
+using the scalar-first quaternion/SO(3) helpers in `prototypes/python/so3.py`.
+
+Install the unsynced/high-rate KITTI Raw OXTS drive under:
 
 ```text
 data/kitti_raw/<date>/<date>_drive_<drive>_extract/oxts/
 ```
 
 If only `*_sync` data is present, the high-rate setup guard raises a clear blocking
-error instead of silently treating 10 Hz OXTS as high-rate IMU data.
+error instead of silently treating 10 Hz OXTS as high-rate IMU data. The Stage 1.3
+smoke command is:
+
+```bash
+PYTHONPATH=prototypes/python python prototypes/python/imu_mechanization.py --root data/kitti_raw --date 2011_09_26 --drive 0001 --duration 5.0
+```
+
+Add `--no-plot` for a console-only check. With sync-only data, the expected result is
+exit code 2 and a clear high-rate extract requirement error. With `*_extract` data
+present, the command prints the sequence, sample count, rate, duration,
+position/attitude drift, cache path, and plot path unless `--no-plot` is set.
 
 ## Linear CV Kalman filter
 
