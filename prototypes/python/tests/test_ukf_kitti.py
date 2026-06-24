@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from ukf_kitti import UkfConfig, sigma_points, STATE_DIM
-from eskf import EskfConfig
+from eskf import EskfConfig, EskfError
 
 
 def test_weights_are_consistent():
@@ -190,6 +190,25 @@ def test_plot_comparison_writes_png(tmp_path):
     out = tmp_path / "cmp.png"
     plot_comparison(cmp, out)
     assert out.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_plot_dropout_experiment_writes_png(tmp_path):
+    from ukf_kitti import plot_dropout_experiment
+
+    seq = _synthetic_sequence(n=400)
+    cmp = compare_filters(seq, UkfConfig(), seed=0, dropout_window=(1.0, 3.0))
+    out = tmp_path / "dropout.png"
+    plot_dropout_experiment(cmp, out)
+    assert out.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_plot_dropout_experiment_requires_window():
+    from ukf_kitti import plot_dropout_experiment
+
+    seq = _synthetic_sequence(n=200)
+    cmp = compare_filters(seq, UkfConfig(), seed=0, dropout_window=None)
+    with pytest.raises(EskfError, match="dropout_window"):
+        plot_dropout_experiment(cmp, "unused.png")
 
 
 def test_parse_args_defaults():

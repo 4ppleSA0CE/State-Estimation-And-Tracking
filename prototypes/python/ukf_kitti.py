@@ -351,6 +351,37 @@ def plot_comparison(cmp: dict, output_path) -> Path:
     return path
 
 
+def plot_dropout_experiment(cmp: dict, output_path) -> Path:
+    """Single figure for the writeup: ESKF position error vs time on the clean run
+    and with a GPS cut, the dropout window shaded, showing divergence then recovery."""
+    import matplotlib.pyplot as plt
+
+    if cmp["eskf_drop"] is None:
+        raise EskfError("plot_dropout_experiment requires a dropout_window in compare_filters")
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    clean, drop = cmp["eskf_clean"], cmp["eskf_drop"]
+    t = np.asarray(clean["timestamps"], dtype=float)
+    truth = clean["truth_positions"]
+    err_clean = np.linalg.norm(clean["x_est"][:, 0:2] - truth[:, 0:2], axis=1)
+    err_drop = np.linalg.norm(drop["x_est"][:, 0:2] - truth[:, 0:2], axis=1)
+    w = cmp["dropout_window"]
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    ax.plot(t, err_clean, "b-", label="GPS available (10 Hz)", linewidth=1.3)
+    ax.plot(t, err_drop, "r-", label="GPS cut in window", linewidth=1.3)
+    ax.axvspan(w[0], w[1], color="gray", alpha=0.2, label=f"GPS dropout {w[0]:.0f}-{w[1]:.0f} s")
+    ax.set_xlabel("time [s]")
+    ax.set_ylabel("horizontal position error [m]")
+    ax.set_title("ESKF GPS-dropout: open-loop drift and recovery")
+    ax.legend(loc="best")
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+    return path
+
+
 def default_plot_path(date: str, drive: str) -> Path:
     return Path("prototypes/output") / f"kitti_{date}_{drive.zfill(4)}_ukf_vs_eskf.png"
 

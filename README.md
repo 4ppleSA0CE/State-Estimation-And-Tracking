@@ -25,3 +25,7 @@ Python and MATLAB prototypes for Kalman-filter state estimation and tracking.
 ## UKF vs Error-State EKF on KITTI
 
 ![](./docs/images/kitti_ukf_vs_eskf.png)
+
+## GPS Dropout: Drift and Recovery on KITTI
+
+![](./docs/images/kitti_gps_dropout.png)
