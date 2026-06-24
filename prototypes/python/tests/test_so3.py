@@ -9,6 +9,7 @@ from so3 import (
     quat_normalize,
     quat_to_euler,
     quat_to_rotmat,
+    quat_to_rotvec,
     rotvec_to_quat,
 )
 
@@ -172,3 +173,32 @@ def test_quat_to_euler_reconstructs_rotation_at_negative_pitch_gimbal_lock():
         quat_to_rotmat(original),
         atol=1e-12,
     )
+
+
+def test_quat_to_rotvec_inverts_rotvec_to_quat():
+    rotvec = np.array([0.1, -0.2, 0.3])
+    recovered = quat_to_rotvec(rotvec_to_quat(rotvec))
+    np.testing.assert_allclose(recovered, rotvec, atol=1e-12)
+
+
+def test_quat_to_rotvec_small_angle_is_finite_and_linear():
+    rotvec = np.array([1e-10, 0.0, 0.0])
+    recovered = quat_to_rotvec(rotvec_to_quat(rotvec))
+    np.testing.assert_allclose(recovered, rotvec, atol=1e-15)
+
+
+def test_quat_to_rotvec_identity_is_zero():
+    np.testing.assert_allclose(quat_to_rotvec([1.0, 0.0, 0.0, 0.0]), np.zeros(3), atol=1e-15)
+
+
+def test_quat_to_rotvec_hits_small_angle_branch():
+    # rotvec small enough that sin_half < 1e-12, exercising the approximation branch
+    rotvec = np.array([1e-13, 0.0, 0.0])
+    recovered = quat_to_rotvec(rotvec_to_quat(rotvec))
+    np.testing.assert_allclose(recovered, rotvec, atol=1e-18)
+
+
+def test_quat_to_rotvec_near_pi_round_trips():
+    rotvec = np.array([np.pi * 0.99, 0.0, 0.0])
+    recovered = quat_to_rotvec(rotvec_to_quat(rotvec))
+    np.testing.assert_allclose(recovered, rotvec, atol=1e-12)
