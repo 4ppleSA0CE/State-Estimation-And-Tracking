@@ -17,3 +17,11 @@ Python and MATLAB prototypes for Kalman-filter state estimation and tracking.
 ## IMM CV / CA / CT (synthetic)
 
 ![](./docs/images/imm_synthetic_summary.png)
+
+## Error-State EKF on KITTI (IMU + GPS)
+
+![](./docs/images/kitti_eskf_summary.png)
+
+## UKF vs Error-State EKF on KITTI
+
+![](./docs/images/kitti_ukf_vs_eskf.png)
