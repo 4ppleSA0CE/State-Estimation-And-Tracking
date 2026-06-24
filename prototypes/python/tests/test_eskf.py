@@ -233,6 +233,17 @@ def test_plot_eskf_summary_writes_png(tmp_path):
     assert out.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
 
 
+def test_run_eskf_dropout_increases_error_in_window():
+    seq = _synthetic_sequence(n=400)
+    clean = run_eskf(seq, EskfConfig(), seed=3)
+    dropped = run_eskf(seq, EskfConfig(), seed=3, dropout_window=(1.0, 3.0))
+    t = clean["timestamps"]
+    mask = (t >= 1.0) & (t <= 3.0)
+    clean_err = np.linalg.norm(clean["x_est"][mask, 0:2] - clean["truth_positions"][mask, 0:2], axis=1)
+    drop_err = np.linalg.norm(dropped["x_est"][mask, 0:2] - dropped["truth_positions"][mask, 0:2], axis=1)
+    assert drop_err.mean() > clean_err.mean()
+
+
 def _extract_available() -> bool:
     config = HighRateOxtsConfig()
     try:

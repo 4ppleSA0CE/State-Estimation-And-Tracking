@@ -349,7 +349,12 @@ def nees_per_step(errors: np.ndarray, covariances: np.ndarray) -> np.ndarray:
     return nees
 
 
-def run_eskf(sequence: object, config: EskfConfig, seed: int, burn_steps: int = 50) -> dict:
+def _in_dropout(t: float, window: "tuple[float, float] | None") -> bool:
+    """True if time t falls inside a (start, end) GPS-dropout window."""
+    return window is not None and window[0] <= t <= window[1]
+
+
+def run_eskf(sequence: object, config: EskfConfig, seed: int, burn_steps: int = 50, dropout_window: "tuple[float, float] | None" = None) -> dict:
     samples = mechanization_input_from_oxts(sequence)
     timestamps = samples.timestamps
     n = timestamps.shape[0]
@@ -377,7 +382,7 @@ def run_eskf(sequence: object, config: EskfConfig, seed: int, burn_steps: int = 
     for k in range(1, n):
         dt = float(timestamps[k] - timestamps[k - 1])
         filt.predict(samples.accel_body[k - 1], samples.gyro_body[k - 1], dt)
-        if k in gps_lookup:
+        if k in gps_lookup and not _in_dropout(float(timestamps[k]), dropout_window):
             filt.update_gps(gps_lookup[k])
         x_est[k] = filt.nominal.position
         errors[k] = boxminus(filt.nominal, filt.accel_bias, filt.gyro_bias, truth[k], np.zeros(3), np.zeros(3))
