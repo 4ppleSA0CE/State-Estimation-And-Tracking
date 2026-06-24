@@ -86,6 +86,21 @@ def rotvec_to_quat(rotvec: object) -> np.ndarray:
     )
 
 
+def quat_to_rotvec(q: object) -> np.ndarray:
+    """Convert a scalar-first quaternion to a rotation vector (SO(3) log map)."""
+    # log map: inverse of rotvec_to_quat. takes a rotation back to its axis*angle
+    # vector. used by the ESKF boxminus to measure an attitude difference.
+    w, x, y, z = quat_normalize(q)
+    vector = np.array([x, y, z], dtype=float)
+    sin_half = np.linalg.norm(vector)  # |[x,y,z]| = sin(angle/2)
+
+    if sin_half < 1e-12:  # near identity, fall back to small-angle: angle ~ 2*[x,y,z]
+        return 2.0 * vector
+
+    angle = 2.0 * np.arctan2(sin_half, w)
+    return (angle / sin_half) * vector
+
+
 def quat_to_rotmat(q: object) -> np.ndarray:
     """Convert a scalar-first quaternion to an active 3x3 rotation matrix."""
     w, x, y, z = quat_normalize(q)
