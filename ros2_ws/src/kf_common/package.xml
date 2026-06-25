@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>kf_common</name>
+  <version>0.1.0</version>
+  <description>Shared math: scalar-first SO(3)/quaternion ops and frame helpers for the KF nodes.</description>
+  <maintainer email="info@prandtldynamics.com">Derek Wang</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Header-only Eigen; exported so dependents (kf_eskf) get it transitively. -->
+  <depend>eigen3_cmake_module</depend>
+  <depend>eigen</depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

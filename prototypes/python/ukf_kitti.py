@@ -57,10 +57,10 @@ class UkfConfig:
     # what makes the UKF-vs-ESKF comparison fair. alpha/beta/kappa are the
     # standard scaled-unscented-transform knobs (Julier): alpha small spreads the
     # sigma points tightly, beta=2 is optimal for Gaussians, kappa=0 is typical.
-    eskf: EskfConfig = field(default_factory=EskfConfig)
-    alpha: float = 1e-3
-    beta: float = 2.0
-    kappa: float = 0.0
+    eskf: EskfConfig = field(default_factory=EskfConfig)  # all noise/init/GPS params, shared with ESKF for fair comparison
+    alpha: float = 1e-3   # sigma-point spread (small = tight cluster around mean)
+    beta: float = 2.0     # distribution parameter; 2 is optimal for Gaussians
+    kappa: float = 0.0    # secondary scaling; 0 is the standard choice for state estimation
 
     @property
     def lam(self) -> float:  # lambda: sigma-point spread parameter
@@ -68,8 +68,8 @@ class UkfConfig:
 
     def weights(self) -> tuple[np.ndarray, np.ndarray]:
         denom = STATE_DIM + self.lam
-        wm = np.full(2 * STATE_DIM + 1, 1.0 / (2.0 * denom))  # mean weights
-        wc = np.full(2 * STATE_DIM + 1, 1.0 / (2.0 * denom))  # covariance weights
+        wm = np.full(2 * STATE_DIM + 1, 1.0 / (2.0 * denom))  # (2n+1,) mean weights, uniform except w0
+        wc = np.full(2 * STATE_DIM + 1, 1.0 / (2.0 * denom))  # (2n+1,) covariance weights, w0 adjusted by beta
         wm[0] = self.lam / denom
         wc[0] = self.lam / denom + (1.0 - self.alpha**2 + self.beta)  # beta corrects covariance kurtosis
         return wm, wc
@@ -106,15 +106,15 @@ class UnscentedKalmanFilter:
             raise EskfError("config must be a UkfConfig")
         self.nominal = nominal
         self.config = config
-        self.accel_bias = np.asarray(accel_bias, dtype=float)
-        self.gyro_bias = np.asarray(gyro_bias, dtype=float)
+        self.accel_bias = np.asarray(accel_bias, dtype=float)  # (3,) current accel bias estimate, m/s^2
+        self.gyro_bias = np.asarray(gyro_bias, dtype=float)  # (3,) current gyro bias estimate, rad/s
         ec = config.eskf
-        self.P = ec.initial_covariance() if covariance is None else np.array(covariance, dtype=float)
+        self.P = ec.initial_covariance() if covariance is None else np.array(covariance, dtype=float)  # 15x15 error-state covariance
         if self.P.shape != (STATE_DIM, STATE_DIM):
             raise EskfError(f"covariance must be {STATE_DIM}x{STATE_DIM}, got {self.P.shape}")
         self._lever = np.asarray(ec.p_base_gps, dtype=float)
         self._gps_cov = ec.gps_covariance()
-        self._wm, self._wc = config.weights()
+        self._wm, self._wc = config.weights()  # precomputed sigma-point mean and covariance weights
 
     def _sigma_points(self) -> np.ndarray:
         return sigma_points(self.P, self.config.lam)
@@ -207,10 +207,10 @@ def run_ukf(sequence, config: UkfConfig, seed: int, burn_steps: int = 50, dropou
 
     filt = UnscentedKalmanFilter(initial_state_from_oxts(sequence, 0), config)
 
-    x_est = np.zeros((n, 3))
-    errors = np.zeros((n, STATE_DIM))
-    cov_hist = np.zeros((n, STATE_DIM, STATE_DIM))
-    att_err_series = np.zeros(n)
+    x_est = np.zeros((n, 3))  # (N, 3) ENU estimated position history, m
+    errors = np.zeros((n, STATE_DIM))  # (N, 15) error-state vs truth, for NEES
+    cov_hist = np.zeros((n, STATE_DIM, STATE_DIM))  # (N, 15, 15) filter covariance history
+    att_err_series = np.zeros(n)  # (N,) attitude error vs OXTS truth, deg
     x_est[0] = filt.nominal.position
     errors[0] = boxminus(filt.nominal, filt.accel_bias, filt.gyro_bias, truth[0], np.zeros(3), np.zeros(3))
     cov_hist[0] = filt.P

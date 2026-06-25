@@ -10,12 +10,12 @@ from pathlib import Path
 import numpy as np
 
 
-MAP = "map"
-BASE_LINK = "base_link"
-IMU_LINK = "imu_link"
-GPS_LINK = "gps_link"
-VELO_LINK = "velo_link"
-_ROTATION_ATOL = 1e-6
+MAP = "map"  # global/world frame name
+BASE_LINK = "base_link"  # vehicle body frame name
+IMU_LINK = "imu_link"  # IMU sensor frame name
+GPS_LINK = "gps_link"  # GPS antenna frame name
+VELO_LINK = "velo_link"  # velodyne lidar frame name
+_ROTATION_ATOL = 1e-6  # tolerance for orthonormality checks on rotation matrices
 
 
 class FrameError(RuntimeError):
@@ -140,10 +140,10 @@ def parse_kitti_rt_file(path: Path | str) -> tuple[np.ndarray, np.ndarray]:
 class RigidTransform:
     """Rigid transform T_target_source mapping coordinates from source to target."""
 
-    target: str
-    source: str
-    rotation: np.ndarray
-    translation: np.ndarray
+    target: str  # name of the destination frame, e.g. "map"
+    source: str  # name of the source frame, e.g. "imu_link"
+    rotation: np.ndarray  # 3x3 R_target_source, rotates vectors from source into target
+    translation: np.ndarray  # (3,) translation of source origin expressed in target frame, m
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "target", _as_frame_name("target", self.target))
@@ -216,8 +216,8 @@ class RigidTransform:
 
 @dataclass(frozen=True)
 class FramePoint:
-    frame: str
-    xyz: np.ndarray
+    frame: str  # coordinate frame the point is expressed in
+    xyz: np.ndarray  # (3,) position vector in that frame, m
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "frame", _as_frame_name("point frame", self.frame))
@@ -226,8 +226,8 @@ class FramePoint:
 
 @dataclass(frozen=True)
 class FrameVector:
-    frame: str
-    xyz: np.ndarray
+    frame: str  # coordinate frame the vector is expressed in
+    xyz: np.ndarray  # (3,) free vector (no translation applied when transforming)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "frame", _as_frame_name("vector frame", self.frame))
@@ -236,8 +236,8 @@ class FrameVector:
 
 @dataclass(frozen=True)
 class FrameCovariance:
-    frame: str
-    covariance: np.ndarray
+    frame: str  # coordinate frame the covariance is expressed in
+    covariance: np.ndarray  # (3, 3) symmetric positive-semidefinite covariance matrix
 
     def __post_init__(self) -> None:
         covariance = _as_covariance3("covariance", self.covariance)
@@ -250,7 +250,7 @@ class Frames:
     """Graph of rigid transforms between named coordinate frames."""
 
     def __init__(self, transforms: Iterable[RigidTransform]) -> None:
-        self._edges: dict[tuple[str, str], RigidTransform] = {}
+        self._edges: dict[tuple[str, str], RigidTransform] = {}  # adjacency map (target, source) -> transform
         self._frames: set[str] = set()
         for transform in transforms:
             self.add(transform)
@@ -301,7 +301,7 @@ class Frames:
         if direct is not None:
             return direct
 
-        queue: deque[RigidTransform] = deque([RigidTransform.identity(source)])
+        queue: deque[RigidTransform] = deque([RigidTransform.identity(source)])  # BFS frontier: partial transforms rooted at source
         visited = {source}
 
         while queue:

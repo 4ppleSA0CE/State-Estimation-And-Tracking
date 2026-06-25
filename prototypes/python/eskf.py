@@ -33,8 +33,8 @@ from kitti_highrate_loader import (
 )
 from so3 import euler_to_quat, quat_inverse, quat_multiply, quat_to_rotmat, quat_to_rotvec, rotvec_to_quat
 
-STATE_DIM = 15
-GPS_DIM = 3
+STATE_DIM = 15  # error state dim: dp(3) + dv(3) + dtheta(3) + db_a(3) + db_g(3) = 15
+GPS_DIM = 3  # ENU position measurement dimension
 
 
 class EskfError(RuntimeError):
@@ -204,9 +204,9 @@ class ErrorStateEKF:
             raise EskfError("config must be an EskfConfig")
         self.nominal = nominal
         self.config = config
-        self.accel_bias = _as_vector3("accel_bias", accel_bias)
-        self.gyro_bias = _as_vector3("gyro_bias", gyro_bias)
-        self.P = config.initial_covariance() if covariance is None else np.array(covariance, dtype=float)
+        self.accel_bias = _as_vector3("accel_bias", accel_bias)  # (3,) current accel bias estimate, m/s^2
+        self.gyro_bias = _as_vector3("gyro_bias", gyro_bias)  # (3,) current gyro bias estimate, rad/s
+        self.P = config.initial_covariance() if covariance is None else np.array(covariance, dtype=float)  # 15x15 error-state covariance
         if self.P.shape != (STATE_DIM, STATE_DIM):
             raise EskfError(f"covariance must be {STATE_DIM}x{STATE_DIM}, got {self.P.shape}")
         self._lever = _as_vector3("p_base_gps", config.p_base_gps)
@@ -370,10 +370,10 @@ def run_eskf(sequence: object, config: EskfConfig, seed: int, burn_steps: int = 
 
     filt = ErrorStateEKF(initial_state_from_oxts(sequence, 0), config)
 
-    x_est = np.zeros((n, 3))
-    errors = np.zeros((n, STATE_DIM))
-    cov_hist = np.zeros((n, STATE_DIM, STATE_DIM))
-    att_err_series = np.zeros(n)
+    x_est = np.zeros((n, 3))  # (N, 3) ENU estimated position history, m
+    errors = np.zeros((n, STATE_DIM))  # (N, 15) error-state vs truth, for NEES
+    cov_hist = np.zeros((n, STATE_DIM, STATE_DIM))  # (N, 15, 15) filter covariance history
+    att_err_series = np.zeros(n)  # (N,) attitude error vs OXTS truth, deg
     x_est[0] = filt.nominal.position
     errors[0] = boxminus(filt.nominal, filt.accel_bias, filt.gyro_bias, truth[0], np.zeros(3), np.zeros(3))
     cov_hist[0] = filt.P

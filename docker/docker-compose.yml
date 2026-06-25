@@ -1,0 +1,18 @@
+# Dev container for the ROS2 C++ nodes. Run from repo root:
+#   docker compose -f docker/docker-compose.yml build
+#   docker compose -f docker/docker-compose.yml run --rm dev bash
+# then inside: cd /workspace/ros2_ws && colcon build
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: kf-dev:humble
+    # Mount the whole repo so edits on the Mac host show up live in the container.
+    volumes:
+      - ..:/workspace:cached
+    working_dir: /workspace/ros2_ws
+    # Foxglove bridge / ROS2 DDS traffic; host networking keeps discovery simple.
+    network_mode: host
+    stdin_open: true
+    tty: true

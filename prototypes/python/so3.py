@@ -102,7 +102,7 @@ def quat_to_rotvec(q: object) -> np.ndarray:
 
 
 def quat_to_rotmat(q: object) -> np.ndarray:
-    """Convert a scalar-first quaternion to an active 3x3 rotation matrix."""
+    """Convert a scalar-first quaternion to an active 3x3 rotation matrix (quaternion -> DCM, active convention)."""
     w, x, y, z = quat_normalize(q)
 
     return np.array(
@@ -122,12 +122,12 @@ def euler_to_quat(roll: float, pitch: float, yaw: float) -> np.ndarray:
     half_pitch = 0.5 * angles[1]
     half_yaw = 0.5 * angles[2]
 
-    cr = np.cos(half_roll)
-    sr = np.sin(half_roll)
-    cp = np.cos(half_pitch)
-    sp = np.sin(half_pitch)
-    cy = np.cos(half_yaw)
-    sy = np.sin(half_yaw)
+    cr = np.cos(half_roll)   # cos(roll/2)
+    sr = np.sin(half_roll)   # sin(roll/2)
+    cp = np.cos(half_pitch)  # cos(pitch/2)
+    sp = np.sin(half_pitch)  # sin(pitch/2)
+    cy = np.cos(half_yaw)    # cos(yaw/2)
+    sy = np.sin(half_yaw)    # sin(yaw/2)
 
     return quat_normalize(
         np.array(
@@ -146,7 +146,7 @@ def quat_to_euler(q: object) -> np.ndarray:
     """Convert a scalar-first quaternion to ZYX roll, pitch, yaw Euler angles."""
     w, x, y, z = quat_normalize(q)
     rotation = quat_to_rotmat(np.array([w, x, y, z], dtype=float))
-    cos_pitch_proxy = np.hypot(rotation[0, 0], rotation[1, 0])
+    cos_pitch_proxy = np.hypot(rotation[0, 0], rotation[1, 0])  # ~cos(pitch); near zero -> gimbal-lock singularity
 
     if cos_pitch_proxy <= np.finfo(float).eps:
         sinp = -rotation[2, 0]

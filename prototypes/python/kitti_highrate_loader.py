@@ -11,9 +11,14 @@ import numpy as np
 
 from kitti_loader import enu_from_wgs84
 
-KITTI_RAW_URL = "https://www.cvlibs.net/datasets/kitti/raw_data.php"
-CACHE_VERSION = 1
-SOURCE_KIND = "extract"
+KITTI_RAW_URL = "https://www.cvlibs.net/datasets/kitti/raw_data.php"  # download page
+CACHE_VERSION = 1  # bump when cache schema changes; stale caches are rejected on load
+SOURCE_KIND = "extract"  # tag distinguishing extract (high-rate) from sync (10 Hz) data
+
+# 30 raw OXTS packet columns, in order, as they appear in each data/*.txt file.
+# columns 0-2: position (lat/lon/alt), 3-5: euler angles, 6-10: velocities,
+# 11-16: accelerations (world then body), 17-22: angular rates (world then body),
+# 23-24: accuracy estimates, 25-29: navigation status flags.
 OXTS_FIELD_NAMES = (
     "lat",
     "lon",
@@ -54,11 +59,11 @@ class HighRateOxtsSetupError(RuntimeError):
 
 @dataclass(frozen=True)
 class HighRateOxtsConfig:
-    root: Path = Path("data/kitti_raw")
-    date: str = "2011_09_26"
-    drive: str = "0001"
-    cache_root: Path = Path("data/cache")
-    force_refresh: bool = False
+    root: Path = Path("data/kitti_raw")  # root path to KITTI raw dataset, contains date folders
+    date: str = "2011_09_26"  # capture date in YYYY_MM_DD format
+    drive: str = "0001"  # 4-digit drive identifier (zero-padded)
+    cache_root: Path = Path("data/cache")  # directory for .npz cache files
+    force_refresh: bool = False  # skip cache and reload from raw files when True
 
     def normalized_drive(self) -> str:
         return self.drive.zfill(4)
@@ -66,19 +71,19 @@ class HighRateOxtsConfig:
 
 @dataclass(frozen=True)
 class HighRateOxtsSequence:
-    timestamps: np.ndarray
-    lat_lon_alt: np.ndarray
-    enu_position_m: np.ndarray
-    roll_pitch_yaw: np.ndarray
-    velocity: np.ndarray
-    accel_body: np.ndarray
-    gyro_body: np.ndarray
-    origin_lat_lon_alt: np.ndarray
-    date: str
-    drive: str
-    source_path: str
-    cache_version: int = CACHE_VERSION
-    source_kind: str = SOURCE_KIND
+    timestamps: np.ndarray  # (N,) time since first sample, s; ~100 Hz for extract
+    lat_lon_alt: np.ndarray  # (N, 3) WGS-84 lat deg, lon deg, alt m
+    enu_position_m: np.ndarray  # (N, 3) ENU position relative to origin, m
+    roll_pitch_yaw: np.ndarray  # (N, 3) OXTS roll, pitch, yaw, rad
+    velocity: np.ndarray  # (N, 3) body-frame forward/left/up velocity, m/s
+    accel_body: np.ndarray  # (N, 3) body-frame specific force, m/s^2
+    gyro_body: np.ndarray  # (N, 3) body-frame angular rate, rad/s
+    origin_lat_lon_alt: np.ndarray  # (3,) WGS-84 origin for ENU conversion
+    date: str  # date string YYYY_MM_DD
+    drive: str  # 4-digit drive string
+    source_path: str  # path to the oxts folder loaded from
+    cache_version: int = CACHE_VERSION  # schema version, must match CACHE_VERSION to use
+    source_kind: str = SOURCE_KIND  # "extract" or "sync", identifies the data source type
 
     @property
     def sample_count(self) -> int:

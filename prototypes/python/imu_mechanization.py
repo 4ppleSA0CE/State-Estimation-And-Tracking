@@ -27,7 +27,7 @@ from so3 import (
 )
 
 
-GRAVITY_ENU = np.array([0.0, 0.0, -9.80665])
+GRAVITY_ENU = np.array([0.0, 0.0, -9.80665])  # ENU gravity vector, m/s^2; z-up so z is negative
 GRAVITY_ENU.setflags(write=False)
 
 
@@ -105,9 +105,9 @@ def _as_positive_dt(value: object) -> float:
 
 @dataclass(frozen=True)
 class NominalState:
-    position: np.ndarray
-    velocity: np.ndarray
-    q_map_imu: np.ndarray
+    position: np.ndarray  # (3,) ENU position, m
+    velocity: np.ndarray  # (3,) ENU velocity, m/s
+    q_map_imu: np.ndarray  # (4,) scalar-first unit quaternion rotating IMU body -> map (ENU)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "position", _as_vector3("position", self.position))
@@ -123,9 +123,9 @@ class NominalState:
 
 @dataclass(frozen=True)
 class MechanizationInput:
-    timestamps: np.ndarray
-    accel_body: np.ndarray
-    gyro_body: np.ndarray
+    timestamps: np.ndarray  # (N,) strictly increasing sample times, s
+    accel_body: np.ndarray  # (N, 3) body-frame specific force measurements, m/s^2
+    gyro_body: np.ndarray  # (N, 3) body-frame angular rate measurements, rad/s
 
     def __post_init__(self) -> None:
         timestamps = _as_timestamps(self.timestamps)
@@ -136,8 +136,8 @@ class MechanizationInput:
 
 @dataclass(frozen=True)
 class MechanizationResult:
-    timestamps: np.ndarray
-    states: tuple[NominalState, ...]
+    timestamps: np.ndarray  # (N,) sample times matching states, s
+    states: tuple[NominalState, ...]  # one NominalState per timestamp
 
     def __post_init__(self) -> None:
         timestamps = _as_timestamps(self.timestamps)
@@ -174,13 +174,13 @@ def _propagate_state_validated(
     accel = _as_vector3("accel_body", accel_body) - accel_bias
     gyro = _as_vector3("gyro_body", gyro_body) - gyro_bias
 
-    rotation = quat_to_rotmat(state.q_map_imu)
-    accel_map = rotation @ accel + GRAVITY_ENU
+    rotation = quat_to_rotmat(state.q_map_imu)  # 3x3 DCM, rotates body -> map
+    accel_map = rotation @ accel + GRAVITY_ENU  # specific force in map frame + gravity, m/s^2
 
     position = state.position + state.velocity * dt_seconds + 0.5 * accel_map * dt_seconds * dt_seconds
     velocity = state.velocity + accel_map * dt_seconds
-    delta_q = rotvec_to_quat(gyro * dt_seconds)
-    q_map_imu = quat_multiply(state.q_map_imu, delta_q)
+    delta_q = rotvec_to_quat(gyro * dt_seconds)  # incremental rotation from gyro rate * dt
+    q_map_imu = quat_multiply(state.q_map_imu, delta_q)  # right-multiply: body rotates in body frame
 
     return NominalState(position=position, velocity=velocity, q_map_imu=q_map_imu)
 

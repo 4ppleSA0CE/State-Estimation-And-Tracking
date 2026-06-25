@@ -9,10 +9,10 @@ from zipfile import BadZipFile
 
 import numpy as np
 
-CACHE_VERSION = 1
-EARTH_RADIUS_M = 6_378_137.0
-KITTI_RAW_URL = "https://www.cvlibs.net/datasets/kitti/raw_data.php"
-DEFAULT_GPS_STD_M = 1.5
+CACHE_VERSION = 1  # bump when cache schema changes; stale caches are rejected on load
+EARTH_RADIUS_M = 6_378_137.0  # WGS-84 equatorial radius, m; used for flat-earth ENU approx
+KITTI_RAW_URL = "https://www.cvlibs.net/datasets/kitti/raw_data.php"  # download page
+DEFAULT_GPS_STD_M = 1.5  # default isotropic GPS position noise std, m
 
 
 class KittiSetupError(RuntimeError):
@@ -21,12 +21,12 @@ class KittiSetupError(RuntimeError):
 
 @dataclass(frozen=True)
 class KittiLoaderConfig:
-    root: Path = Path("data/kitti_raw")
-    date: str = "2011_09_26"
-    drive: str = "0001"
-    cache_root: Path = Path("data/cache")
-    force_refresh: bool = False
-    gps_std_m: float = DEFAULT_GPS_STD_M
+    root: Path = Path("data/kitti_raw")  # root path to KITTI raw dataset, contains date folders
+    date: str = "2011_09_26"  # capture date in YYYY_MM_DD format
+    drive: str = "0001"  # 4-digit drive identifier (zero-padded)
+    cache_root: Path = Path("data/cache")  # directory for .npz cache files
+    force_refresh: bool = False  # skip cache and reload from raw files when True
+    gps_std_m: float = DEFAULT_GPS_STD_M  # isotropic GPS position noise std, m
 
     def normalized_drive(self) -> str:
         return self.drive.zfill(4)
@@ -34,19 +34,19 @@ class KittiLoaderConfig:
 
 @dataclass(frozen=True)
 class KittiSequence:
-    timestamps: np.ndarray
-    lat_lon_alt: np.ndarray
-    enu_position_m: np.ndarray
-    roll_pitch_yaw: np.ndarray
-    velocity: np.ndarray
-    accel_body: np.ndarray
-    gyro_body: np.ndarray
-    gps_covariance: np.ndarray
-    origin_lat_lon_alt: np.ndarray
-    date: str
-    drive: str
-    source_path: str
-    cache_version: int = CACHE_VERSION
+    timestamps: np.ndarray  # (N,) time since first sample, s
+    lat_lon_alt: np.ndarray  # (N, 3) WGS-84 lat deg, lon deg, alt m
+    enu_position_m: np.ndarray  # (N, 3) ENU position relative to first sample, m
+    roll_pitch_yaw: np.ndarray  # (N, 3) OXTS roll, pitch, yaw, rad
+    velocity: np.ndarray  # (N, 3) body-frame forward/left/up velocity, m/s
+    accel_body: np.ndarray  # (N, 3) body-frame specific force (accel - gravity), m/s^2
+    gyro_body: np.ndarray  # (N, 3) body-frame angular rate, rad/s
+    gps_covariance: np.ndarray  # (N, 3, 3) ENU position covariance from gps_std_m, m^2
+    origin_lat_lon_alt: np.ndarray  # (3,) WGS-84 origin used for ENU conversion
+    date: str  # date string YYYY_MM_DD
+    drive: str  # 4-digit drive string
+    source_path: str  # path to the raw data date folder loaded from
+    cache_version: int = CACHE_VERSION  # schema version, must match CACHE_VERSION to use
 
     @property
     def sample_count(self) -> int:
@@ -70,9 +70,9 @@ def enu_from_wgs84(
     lon = np.asarray(lon_deg, dtype=float)
     alt = np.asarray(alt_m, dtype=float)
 
-    east = np.deg2rad(lon - origin[1]) * EARTH_RADIUS_M * np.cos(np.deg2rad(origin[0]))
-    north = np.deg2rad(lat - origin[0]) * EARTH_RADIUS_M
-    up = alt - origin[2]
+    east = np.deg2rad(lon - origin[1]) * EARTH_RADIUS_M * np.cos(np.deg2rad(origin[0]))  # longitude arc scaled by cos(lat), m
+    north = np.deg2rad(lat - origin[0]) * EARTH_RADIUS_M  # latitude arc, m
+    up = alt - origin[2]  # altitude difference, m
     return np.column_stack([east, north, up])
 
 

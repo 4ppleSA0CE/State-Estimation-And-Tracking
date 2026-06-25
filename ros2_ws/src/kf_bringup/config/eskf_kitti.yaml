@@ -1,0 +1,34 @@
+# EskfNode and KittiReplay parameters for the Stage 1.4 KITTI parity check.
+# Defaults match prototypes/python/eskf.py EskfConfig and kitti_highrate_loader defaults.
+
+eskf_node:
+  ros__parameters:
+    # Frame IDs.
+    map_frame:  "map"
+    base_frame: "base_link"
+
+    # Noise model — identical to Python EskfConfig defaults.
+    sigma_accel:      2.0      # m/s^2 accel white noise
+    sigma_gyro:       0.001    # rad/s gyro white noise
+    sigma_accel_bias: 0.001    # m/s^2 accel bias random walk
+    sigma_gyro_bias:  0.00001  # rad/s gyro bias random walk
+    gps_std_m:        0.75     # GPS position noise std, m
+
+    # Initial covariance (std per block). p0_att in degrees; node converts to radians.
+    p0_pos:        2.0
+    p0_vel:        3.0
+    p0_att_deg:    0.5
+    p0_accel_bias: 0.1
+    p0_gyro_bias:  0.0001
+
+    # GPS antenna lever arm in the body frame; default colocated.
+    lever_xyz: [0.0, 0.0, 0.0]
+
+kitti_replay:
+  ros__parameters:
+    cache_path:     "/workspace/data/cache/kitti_raw_2011_09_26_drive_0001_extract_oxts_v1.npz"
+    reference_path: "/workspace/data/cache/eskf_py_ref.npz"
+    gps_std_m:          0.75
+    gps_rate_divisor:   10
+    seed:               0
+    publish_period_s:   0.001
