@@ -60,3 +60,38 @@ def associate(preds, dets, gate=DEFAULT_GATE, greedy=False):
     unmatched_d = [j for j in range(m) if j not in matched_d]
     unmatched_t = [i for i in range(n) if i not in matched_t]
     return matches, unmatched_d, unmatched_t
+
+
+def _greedy_from_cost(cost, big_cost):
+    n, m = cost.shape
+    pairs = sorted(
+        ((cost[i, j], i, j) for i in range(n) for j in range(m) if cost[i, j] < big_cost),
+        key=lambda t: t[0],
+    )
+    used_t, used_d, matches = set(), set(), []
+    for _, i, j in pairs:
+        if i not in used_t and j not in used_d:
+            matches.append((i, j))
+            used_t.add(i)
+            used_d.add(j)
+    return matches
+
+
+def associate_from_cost(cost, big_cost=BIG_COST, greedy=False):
+    """Assign rows (tracks) to cols (dets) from a PRECOMPUTED cost matrix. Pairs with
+    cost >= big_cost are treated as gated-out. Returns (matches, unmatched_cols, unmatched_rows).
+    Used by the KITTI tracker (IoU cost); the synthetic tracker keeps using associate()."""
+    cost = np.asarray(cost, dtype=float)
+    n, m = cost.shape
+    if n == 0 or m == 0:
+        return [], list(range(m)), list(range(n))
+    if greedy:
+        matches = _greedy_from_cost(cost, big_cost)
+    else:
+        rows, cols = linear_sum_assignment(cost)
+        matches = [(int(i), int(j)) for i, j in zip(rows, cols) if cost[i, j] < big_cost]
+    matched_t = {i for i, _ in matches}
+    matched_d = {j for _, j in matches}
+    unmatched_d = [j for j in range(m) if j not in matched_d]
+    unmatched_t = [i for i in range(n) if i not in matched_t]
+    return matches, unmatched_d, unmatched_t

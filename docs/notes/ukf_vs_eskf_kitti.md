@@ -25,3 +25,11 @@ errors, coarse update rates) that this 100 Hz / 10 Hz setup does not exhibit.
 Dropout window (4.0, 8.0) s. Position RMSE with the cut:
 ESKF 1.508 m, UKF 1.507 m. Both drift
 open-loop through the gap on IMU alone and re-converge once GPS returns.
+
+## Consequence: the C++ UKF port was intentionally not built
+
+This verdict (same accuracy, ~24× the cost) is the same one reached on the synthetic
+radar problem (Stage 0.4). Porting the UKF to a C++/ROS2 node would reproduce the
+comparison a third time in a faster language and change none of the conclusions, so it
+was deliberately parked. Measuring the trade-off and declining the port is the point —
+the UKF earns its cost only under strong nonlinearity this 100 Hz / 10 Hz INS setup lacks.
