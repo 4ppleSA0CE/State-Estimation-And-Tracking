@@ -3,7 +3,7 @@
 <package format="3">
   <name>kf_bringup</name>
   <version>0.1.0</version>
-  <description>Launch files, config, and KITTI replay node for the kf_eskf filter stack.</description>
+  <description>Launch files, config, and replay nodes for the kf_eskf and kf_tracker stacks.</description>
   <maintainer email="info@prandtldynamics.com">Derek Wang</maintainer>
   <license>MIT</license>
 
@@ -16,6 +16,7 @@
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>kf_msgs</exec_depend>
   <exec_depend>kf_eskf</exec_depend>
+  <exec_depend>kf_tracker</exec_depend>
 
   <export>
     <build_type>ament_python</build_type>

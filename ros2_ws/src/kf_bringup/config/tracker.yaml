@@ -1,0 +1,27 @@
+# TrackerNode and TrackingReplay parameters for the Stage 5B tracker parity gate.
+# Defaults match prototypes/python/tracking/kitti_tracker.py (_default_imm + KittiTrackerConfig)
+# and prototypes/python/tracking/imm_filter.py (IMMConfig.pi_diag).
+
+tracker_node:
+  ros__parameters:
+    dt: 0.1              # 10 Hz KITTI tracking rate
+    sigma_pos: 0.5       # detection center noise, m
+    q_accel: 2.0         # process noise for road vehicles
+    omegas: [0.2, -0.2]  # CT bank turn rates, rad/s
+    pi_diag: 0.97        # IMM mode-persistence probability
+    cost: "iou"          # "iou" (3D-IoU) | "maha" (Mahalanobis on BEV centers)
+    iou_gate: 0.01       # minimum IoU to allow a match
+    min_hits: 3          # M-of-N birth
+    max_age: 2           # misses before a track dies
+    greedy: false        # false = Hungarian, true = AB3DMOT-style greedy
+    p0_vel: 10.0         # birth velocity variance (KittiTrackerConfig.p0_vel, not IMMConfig's)
+
+tracking_replay:
+  ros__parameters:
+    reference_path: "/workspace/data/cache/tracker_py_ref.npz"
+    discovery_timeout_s: 30.0   # wait for tracker_node to match before the first publish
+    frame_timeout_s:     10.0   # per-frame wait for one TrackArray before declaring a stall
+    settle_s:             0.5   # let DDS finish matching after discovery
+    drain_s:              1.0   # post-replay spin, so an over-publishing node is caught
+    # The parity tolerance is deliberately NOT a parameter — it is part of the contract.
+    # See STATE_TOL in kf_bringup/tracking_replay.py.

@@ -30,6 +30,10 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_so3 test/test_so3.cpp)        # DOD 2.1: quaternion-op tests
   target_link_libraries(test_so3 kf_common Eigen3::Eigen)
+  ament_add_gtest(test_unscented test/test_unscented.cpp)   # unscented transform invariants
+  target_link_libraries(test_unscented kf_common Eigen3::Eigen)
+  ament_add_gtest(test_hungarian test/test_hungarian.cpp)   # rectangular optimal assignment
+  target_link_libraries(test_hungarian kf_common Eigen3::Eigen)
 endif()
 
 ament_package()
