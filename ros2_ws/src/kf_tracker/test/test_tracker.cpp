@@ -26,6 +26,7 @@ using kf_tracker::associateFromCost;
 using kf_tracker::Box3D;
 using kf_tracker::BoxTrack;
 using kf_tracker::kBigCost;
+using kf_tracker::kMahaGate;
 using kf_tracker::KittiTracker;
 using kf_tracker::mahalanobisSq;
 using kf_tracker::Matrix2d;
@@ -802,4 +803,171 @@ TEST(Tracker, LifecycleStatePinFourModeBank) {
       EXPECT_GT(mu.minCoeff(), 0.0);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Gap closures from the 2026-07-27 mutation sweep (34 mutants, 21 killed by the
+// tests above). Each of these kills a mutant that the suite above did NOT catch:
+//   * gate applied before instead of after the solve  (changed the pairing on
+//     8/4000 random matrices; baseline matches scipy, the mutant does not)
+//   * update() dropping the l / w / y geometry carry
+//   * greedy cost-tie ordering (documented contract, previously unpinned)
+//   * kMahaGate: the suite passed with it anywhere in [1.0, 100.0]
+//   * min_hits == 1 (newborn must confirm on its birth frame)
+//   * a TENTATIVE track missing a frame (promotion must count cumulative hits,
+//     not hit_streak) -- no prior test ever let a tentative track miss
+// ---------------------------------------------------------------------------
+namespace {
+Box3D gapCar(double x, double z, double score = 1.0) {
+  Box3D b;
+  b.x = x;
+  b.y = 1.6;
+  b.z = z;
+  b.yaw = 0.0;
+  b.l = 3.9;
+  b.w = 1.6;
+  b.h = 1.5;
+  b.score = score;
+  return b;
+}
+}  // namespace
+
+// kills M15 (gate filter applied BEFORE the solve)
+TEST(Gap, GateIsAppliedAfterTheSolveNotBefore) {
+  const double B = kBigCost;
+  {   // fully-gated COLUMN 0 plus a tie between rows 0 and 1 on column 1.
+    Eigen::MatrixXd c(3, 2);
+    c << B, 0.0,
+         B, 0.0,
+         B, 1.0;
+    const Assignment a = associateFromCost(c, kBigCost, false);
+    ASSERT_EQ(a.matches.size(), 1u);
+    EXPECT_EQ(a.matches[0].first, 1);        // scipy: [(1, 1)], cols [0], rows [0, 2]
+    EXPECT_EQ(a.matches[0].second, 1);
+    ASSERT_EQ(a.unmatched_rows.size(), 2u);
+    EXPECT_EQ(a.unmatched_rows[0], 0);
+    EXPECT_EQ(a.unmatched_rows[1], 2);
+  }
+  {   // fully-gated ROW 2, degenerate optimum over rows 0/1.
+    Eigen::MatrixXd c(4, 3);
+    c << 2.0, 1.0, 1.0,
+         3.0, 2.0, 1.0,
+         B,   B,   B,
+         B,   B,   3.0;
+    const Assignment a = associateFromCost(c, kBigCost, false);
+    ASSERT_EQ(a.matches.size(), 3u);         // scipy: [(0,0), (1,1), (3,2)]
+    EXPECT_EQ(a.matches[0].second, 0);
+    EXPECT_EQ(a.matches[1].second, 1);
+    EXPECT_EQ(a.matches[2].second, 2);
+  }
+  {
+    Eigen::MatrixXd c(3, 3);
+    c << 2.0, 3.0, 0.0,
+         B,   B,   B,
+         B,   3.0, 1.0;
+    const Assignment a = associateFromCost(c, kBigCost, false);
+    ASSERT_EQ(a.matches.size(), 2u);         // scipy: [(0,2), (2,1)]
+    EXPECT_EQ(a.matches[0].first, 0);
+    EXPECT_EQ(a.matches[0].second, 2);
+    EXPECT_EQ(a.matches[1].first, 2);
+    EXPECT_EQ(a.matches[1].second, 1);
+  }
+}
+
+// kills X04 (greedy tie-break order)
+TEST(Gap, GreedyBreaksCostTiesInGenerationOrder) {
+  Eigen::MatrixXd c(2, 2);
+  c << kBigCost, 1.0,
+       1.0, kBigCost;
+  const Assignment g = associateFromCost(c, kBigCost, true);
+  ASSERT_EQ(g.matches.size(), 2u);           // Python's stable sort emits (0,1) before (1,0)
+  EXPECT_EQ(g.matches[0].first, 0);
+  EXPECT_EQ(g.matches[0].second, 1);
+  EXPECT_EQ(g.matches[1].first, 1);
+  EXPECT_EQ(g.matches[1].second, 0);
+}
+
+// kills X02 and X03 (l/w/y not carried by update())
+TEST(Gap, CarriesEveryBoxDimensionNotJustHeightAndYaw) {
+  TrackerConfig cfg;
+  KittiTracker trk(cfg);
+  for (int i = 0; i < 3; ++i) trk.step({gapCar(0.0, 10.0)});
+  Box3D grown = gapCar(0.0, 10.0);
+  grown.l = 5.2;
+  grown.w = 2.1;
+  grown.h = 2.4;
+  grown.y = 0.9;
+  grown.yaw = 0.3;
+  const auto out = trk.step({grown});
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_NEAR(out[0]->box().l, 5.2, 1e-12);
+  EXPECT_NEAR(out[0]->box().w, 2.1, 1e-12);
+  EXPECT_NEAR(out[0]->box().h, 2.4, 1e-12);
+  EXPECT_NEAR(out[0]->box().y, 0.9, 1e-12);
+  EXPECT_NEAR(out[0]->box().yaw, 0.3, 1e-12);
+}
+
+// kills X05 (kMahaGate loosened/tightened)
+TEST(Gap, MahalanobisGateIsChiSquared99NotSomethingTighter) {
+  EXPECT_NEAR(kMahaGate, 9.21, 1e-12);       // chi2.ppf(0.99, 2), matching Python's _MAHA_GATE
+
+  TrackerConfig cfg;
+  cfg.cost = "maha";
+  KittiTracker trk(cfg);
+  KittiTracker probe(cfg);
+  for (int k = 0; k < 4; ++k) {
+    trk.step({gapCar(0.0, 20.0 + 0.6 * k)});
+    probe.step({gapCar(0.0, 20.0 + 0.6 * k)});
+  }
+  probe.step({});                            // predict + coast: probe now holds the state the
+  ASSERT_EQ(probe.numTracks(), 1u);          // NEXT cost matrix of `trk` will be built from
+  Vector2d z_pred;
+  Matrix2d s;
+  probe.tracks()[0].predictedMeasurement(z_pred, s);
+
+  Vector2d u;
+  u << 1.0, 0.0;
+  const double alpha = std::sqrt(7.5 / mahalanobisSq(u, s));   // d2 == 7.5 exactly
+  Vector2d d = alpha * u;
+  ASSERT_NEAR(mahalanobisSq(d, s), 7.5, 1e-9);
+  // 7.5 sits strictly between chi2.ppf(0.95, 2) = 5.99 and chi2.ppf(0.99, 2) = 9.21, so only the
+  // correct gate accepts it.
+  trk.step({gapCar(z_pred(0) + d(0), z_pred(1) + d(1))});
+  ASSERT_EQ(trk.numTracks(), 1u) << "a detection inside chi2(0.99) must match, not birth";
+  EXPECT_EQ(trk.tracks()[0].hits, 5u);
+  EXPECT_EQ(trk.tracks()[0].time_since_update, 0u);
+}
+
+// kills X09 and X10 (promotion / erase moved ahead of the birth loop)
+TEST(Gap, MinHitsOfOneConfirmsOnTheBirthFrame) {
+  TrackerConfig cfg;
+  cfg.min_hits = 1;
+  KittiTracker trk(cfg);
+  const auto out = trk.step({gapCar(0.0, 10.0)});
+  ASSERT_EQ(trk.numTracks(), 1u);
+  EXPECT_EQ(trk.tracks()[0].status, kC);
+  ASSERT_EQ(out.size(), 1u) << "min_hits == 1 must confirm and publish on the birth frame";
+  EXPECT_EQ(out[0]->id, 0);
+}
+
+// kills X11 (promotion counting hit_streak instead of cumulative hits)
+TEST(Gap, TentativeTrackPromotesOnCumulativeHitsAcrossAMiss) {
+  TrackerConfig cfg;
+  cfg.min_hits = 3;
+  cfg.max_age = 2;
+  KittiTracker trk(cfg);
+  EXPECT_TRUE(trk.step({gapCar(0.0, 10.0)}).empty());       // hit 1
+  EXPECT_TRUE(trk.step({gapCar(0.0, 10.1)}).empty());       // hit 2
+  EXPECT_TRUE(trk.step({}).empty());                     // miss while STILL TENTATIVE
+  ASSERT_EQ(trk.numTracks(), 1u);
+  EXPECT_EQ(trk.tracks()[0].hits, 2u);
+  EXPECT_EQ(trk.tracks()[0].hit_streak, 0u);
+  EXPECT_EQ(trk.tracks()[0].status, kT);
+
+  const auto out = trk.step({gapCar(0.0, 10.2)});           // cumulative hit 3 -> confirm
+  ASSERT_EQ(trk.numTracks(), 1u);
+  EXPECT_EQ(trk.tracks()[0].hits, 3u);
+  EXPECT_EQ(trk.tracks()[0].hit_streak, 1u);
+  EXPECT_EQ(trk.tracks()[0].status, kC);
+  ASSERT_EQ(out.size(), 1u) << "min_hits counts TOTAL hits, not consecutive ones";
 }
