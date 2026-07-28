@@ -3,7 +3,15 @@ from __future__ import annotations
 import numpy as np
 
 from ekf_synthetic import measurement_jacobian, measurement_model, wrap_angle
-from imm_synthetic import NUM_MODES, ImmScenarioConfig, mix_imm
+from imm_synthetic import (
+    CA_DIM,
+    NUM_MODES,
+    ImmScenarioConfig,
+    ca_matrices,
+    mix_imm,
+    ref_from_ca,
+    ref_to_ca,
+)
 from linear_kf import STATE_DIM, ScenarioConfig, cv_matrices, run_single_trial
 from ukf_synthetic import sigma_points, unscented_weights, weighted_covariance, weighted_mean
 
@@ -105,3 +113,31 @@ def test_imm_mixing_probabilities_and_covariances_are_well_formed() -> None:
         assert x.shape == (STATE_DIM,)
         assert p.shape == (STATE_DIM, STATE_DIM)
         assert_symmetric_psd(p)
+
+
+def test_ca_reference_conversion_is_an_exact_round_trip() -> None:
+    # ref_to_ca inflates [x,y,vx,vy] to the 6-state CA layout; ref_from_ca deflates it back.
+    # Distinct variances on every axis so any index permutation shows up (regression: ref_to_ca
+    # used np.ix_([0,2,1,3],...) and silently swapped var(y) with var(vx)).
+    x_ref = np.array([10.0, 20.0, 1.0, 2.0])
+    p_ref = np.diag([1.0, 2.0, 100.0, 200.0])
+
+    x_ca, p_ca = ref_to_ca(x_ref, p_ref)
+    assert x_ca.shape == (CA_DIM,)
+    assert p_ca.shape == (CA_DIM, CA_DIM)
+    np.testing.assert_allclose(x_ca[:STATE_DIM], x_ref, rtol=0.0, atol=1e-12)
+    assert_symmetric_psd(p_ca)
+
+    x_back, p_back = ref_from_ca(x_ca, p_ca)
+    np.testing.assert_allclose(x_back, x_ref, rtol=0.0, atol=1e-12)
+    np.testing.assert_allclose(p_back, p_ref, rtol=0.0, atol=1e-12)
+
+
+def test_ca_state_layout_is_x_y_vx_vy_ax_ay() -> None:
+    # The round-trip test above is only meaningful if CA really is [x,y,vx,vy,ax,ay].
+    # Pin it from F directly: x' = x + dt*vx + 0.5*dt^2*ax touches columns 0, 2, 4.
+    dt = 0.1
+    f, h, _, _ = ca_matrices(dt, sigma_pos=0.5, q_accel=2.0)
+    np.testing.assert_allclose(f[0], [1.0, 0.0, dt, 0.0, 0.5 * dt * dt, 0.0], atol=1e-12)
+    np.testing.assert_allclose(f[1], [0.0, 1.0, 0.0, dt, 0.0, 0.5 * dt * dt], atol=1e-12)
+    np.testing.assert_allclose(h @ np.arange(CA_DIM, dtype=float), [0.0, 1.0], atol=1e-12)

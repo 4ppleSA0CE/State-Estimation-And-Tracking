@@ -98,7 +98,10 @@ def ref_to_ca(x_ref: np.ndarray, p_ref: np.ndarray) -> tuple[np.ndarray, np.ndar
     x = np.zeros(CA_DIM)
     x[0], x[1], x[2], x[3] = x_ref[0], x_ref[1], x_ref[2], x_ref[3]
     p = np.diag([1.0, 1.0, 1.0, 1.0, 0.5, 0.5]) * 10.0
-    p[np.ix_([0, 2, 1, 3], [0, 2, 1, 3])] = p_ref
+    # CA order is [x, y, vx, vy, ax, ay], so the first 4 slots ARE the reference order —
+    # a plain block copy. (Was np.ix_([0,2,1,3],...), which swapped var(y) with var(vx)
+    # and made ref_to_ca/ref_from_ca a non-identity round trip.)
+    p[:REF_DIM, :REF_DIM] = p_ref
     return x, p
 
 
