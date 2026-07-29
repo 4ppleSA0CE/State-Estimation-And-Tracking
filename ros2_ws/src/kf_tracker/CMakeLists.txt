@@ -17,6 +17,7 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(kf_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 
 # Header-only tracking kernel: an INTERFACE target carrying the include dir + kf_common
 # (which transitively brings Eigen). Host-compiles without ROS.
@@ -39,6 +40,17 @@ target_link_libraries(tracker_node kf_tracker kf_common::kf_common Eigen3::Eigen
 ament_target_dependencies(tracker_node rclcpp geometry_msgs std_msgs kf_msgs)
 install(TARGETS tracker_node DESTINATION lib/${PROJECT_NAME})
 
+# DetectionTransformNode: Stage 6 coupling -- base_link detections + /ego/state -> map_bev.
+add_executable(detection_transform_node src/detection_transform_node.cpp)
+target_include_directories(detection_transform_node PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
+target_link_libraries(detection_transform_node kf_tracker kf_common::kf_common Eigen3::Eigen)
+# builtin_interfaces is listed explicitly: <builtin_interfaces/msg/time.hpp> is included
+# directly by this node and otherwise resolves only transitively through kf_msgs.
+ament_target_dependencies(detection_transform_node
+  rclcpp geometry_msgs std_msgs kf_msgs builtin_interfaces)
+install(TARGETS detection_transform_node DESTINATION lib/${PROJECT_NAME})
+
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_box3d test/test_box3d.cpp)      # oriented 3D-IoU
@@ -49,6 +61,10 @@ if(BUILD_TESTING)
   target_link_libraries(test_imm kf_tracker kf_common::kf_common Eigen3::Eigen)
   ament_add_gtest(test_tracker test/test_tracker.cpp)  # association + M-of-N lifecycle
   target_link_libraries(test_tracker kf_tracker kf_common::kf_common Eigen3::Eigen)
+  ament_add_gtest(test_ego_transform test/test_ego_transform.cpp)  # base_link -> map_bev coupling
+  target_link_libraries(test_ego_transform kf_tracker kf_common::kf_common Eigen3::Eigen)
+  ament_add_gtest(test_pending_frames test/test_pending_frames.cpp)  # detection/ego arrival orders
+  target_link_libraries(test_pending_frames kf_tracker kf_common::kf_common Eigen3::Eigen)
 endif()
 
 ament_package()

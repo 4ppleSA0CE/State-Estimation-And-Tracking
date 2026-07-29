@@ -1,0 +1,105 @@
+# Stage 6 unified-pipeline parameters: eskf_node + detection_transform_node + tracker_node +
+# pipeline_replay, all four blocks in one file so a reader sees the whole stack at once.
+#
+# The eskf_node and tracker_node blocks are copied VERBATIM from config/eskf_kitti.yaml and
+# config/tracker.yaml. That is the point: Stage 6 must run the same filters Stages 2 and 5B
+# validated, so a Stage 6 number is attributable to the coupling and not to a retuned filter.
+# If either of those files changes, this one changes with it.
+#
+# full_pipeline.launch.py layers the per-mode preset ON TOP of this file (later parameter
+# sources win), so every value below is the BASELINE value. tracker_node's max_age is the one
+# exception a preset touches (det_dropout_coast raises it to 15).
+#
+# Reaches share/ only via setup.py's explicit filename list — not a glob.
+
+# --- verbatim from config/eskf_kitti.yaml -------------------------------------------------
+eskf_node:
+  ros__parameters:
+    # Frame IDs.
+    map_frame:  "map"
+    base_frame: "base_link"
+
+    # Noise model — identical to Python EskfConfig defaults.
+    sigma_accel:      2.0      # m/s^2 accel white noise
+    sigma_gyro:       0.001    # rad/s gyro white noise
+    sigma_accel_bias: 0.001    # m/s^2 accel bias random walk
+    sigma_gyro_bias:  0.00001  # rad/s gyro bias random walk
+    gps_std_m:        0.75     # GPS position noise std, m
+
+    # Initial covariance (std per block). p0_att in degrees; node converts to radians.
+    p0_pos:        2.0
+    p0_vel:        3.0
+    p0_att_deg:    0.5
+    p0_accel_bias: 0.1
+    p0_gyro_bias:  0.0001
+
+    # GPS antenna lever arm in the body frame; default colocated.
+    lever_xyz: [0.0, 0.0, 0.0]
+
+# --- new in Stage 6 -----------------------------------------------------------------------
+detection_transform_node:
+  ros__parameters:
+    ego_buffer_capacity: 512     # ~5 s of /ego/state at 100 Hz
+    max_pending_frames:  32      # detection frames still waiting for their exact ego stamp
+    map_bev_frame:       "map_bev"
+
+# --- verbatim from config/tracker.yaml ----------------------------------------------------
+tracker_node:
+  ros__parameters:
+    dt: 0.1              # 10 Hz KITTI tracking rate
+    sigma_pos: 0.5       # detection center noise, m
+    q_accel: 2.0         # process noise for road vehicles
+    omegas: [0.2, -0.2]  # CT bank turn rates, rad/s
+    pi_diag: 0.97        # IMM mode-persistence probability
+    cost: "iou"          # "iou" (3D-IoU) | "maha" (Mahalanobis on BEV centers)
+    iou_gate: 0.01       # minimum IoU to allow a match
+    min_hits: 3          # M-of-N birth
+    max_age: 2           # misses before a track dies (det_dropout_coast overrides this to 15)
+    greedy: false        # false = Hungarian, true = AB3DMOT-style greedy
+    p0_vel: 10.0         # birth velocity variance (KittiTrackerConfig.p0_vel, not IMMConfig's)
+
+# --- new in Stage 6 -----------------------------------------------------------------------
+# Every parameter pipeline_replay declares, at its baseline value. Types must match the
+# declared defaults exactly (rclpy rejects an int override on a double parameter), which is why
+# every float carries a decimal point and every count does not.
+pipeline_replay:
+  ros__parameters:
+    cache_path:  "/workspace/data/cache/kitti_raw_2011_09_26_drive_0001_extract_oxts_v1.npz"
+    output_npz:  "/workspace/data/cache/stage6_baseline.npz"
+    baseline_npz: ""           # "" = none; the launch passes one for every ratio-gated mode
+    mode: "baseline"           # validated against stage6_gates.MODES in the constructor
+
+    # Sensor stream — gps_std_m and gps_rate_divisor match kitti_replay so the Stage 2 GPS
+    # noise sequence is reproduced for the same seed.
+    gps_std_m:        0.75
+    gps_rate_divisor: 10       # 100 Hz OXTS / 10 = 10 Hz GPS
+    det_rate_divisor: 10       # 100 Hz OXTS / 10 = 10 Hz detections
+    seed:             0        # one RNG seed for the GPS noise AND the detector
+    rate_scale:       0.0      # 0 = as fast as possible; 1.0 = wall clock (foxglove:=true)
+    publish_period_s: 0.001    # spin timeout per publish, as in kitti_replay
+
+    # Failure injection — all off at baseline. [0.0, 0.0] is the "not injected" sentinel the
+    # gates read back out of the npz.
+    gps_dropout_s:      [0.0, 0.0]
+    det_dropout_s:      [0.0, 0.0]
+    imu_accel_bias_xyz: [0.0, 0.0, 0.0]
+
+    # Detector model (targets.TargetConfig, which validates its own ranges).
+    p_detect:       0.9
+    det_pos_std:    0.35
+    det_yaw_std:    0.03
+    clutter_lambda: 0.0
+    max_range_m:    60.0
+    fov_deg:        90.0
+
+    # Maneuver injection. -1 = no maneuver; the `maneuver` preset selects target 0.
+    maneuver_target:  -1
+    maneuver_start_s: 5.0
+    maneuver_omega:   0.4
+
+    # Timing. discovery_timeout_s/settle_s are copied from tracking_replay: RELIABLE+VOLATILE
+    # does not redeliver to a late-joining peer, so publishing before the three C++ nodes have
+    # matched silently loses the head of the run.
+    drain_timeout_s:     10.0
+    discovery_timeout_s: 30.0
+    settle_s:             0.5

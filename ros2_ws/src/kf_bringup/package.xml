@@ -17,6 +17,19 @@
   <exec_depend>kf_msgs</exec_depend>
   <exec_depend>kf_eskf</exec_depend>
   <exec_depend>kf_tracker</exec_depend>
+  <!-- Stage 6 viz_markers: MarkerArray output plus the static map->map_bev transform.
+       Stage 6 lidar_replay: sensor_msgs/PointCloud2 (sensor_msgs is already declared above,
+       for kitti_replay's Imu) plus the static base_link->velodyne transform. -->
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <!-- full_pipeline.launch.py foxglove:=true launches foxglove_bridge. docker/Dockerfile
+       apt-installs it, so the container happens to satisfy this already; declaring it is what
+       makes a rosdep-based install anywhere else get it too. -->
+  <exec_depend>foxglove_bridge</exec_depend>
+
+  <!-- Without this (and setup.py's tests_require) colcon falls back to `setup.py test` and
+       reports "Ran 0 tests" for the pytest suite in test/, exiting 0 the whole time. -->
+  <test_depend>python3-pytest</test_depend>
 
   <export>
     <build_type>ament_python</build_type>

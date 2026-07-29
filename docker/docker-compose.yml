@@ -12,7 +12,36 @@ services:
     volumes:
       - ..:/workspace:cached
     working_dir: /workspace/ros2_ws
-    # Foxglove bridge / ROS2 DDS traffic; host networking keeps discovery simple.
+    # ROS2 DDS traffic; host networking keeps discovery simple between separate `run` invocations.
+    # NOTE: on Docker Desktop for macOS this binds inside the Linux VM, NOT on the Mac itself, so
+    # nothing here is reachable from a host-side Foxglove. Use the `viz` service for that.
     network_mode: host
+    stdin_open: true
+    tty: true
+
+  # Same image as `dev`, but on Docker's bridge network with the Foxglove WebSocket published to
+  # the Mac. Required because `network_mode: host` does NOT expose ports to the host on Docker
+  # Desktop for macOS — it binds inside the Linux VM, so `ws://localhost:8765` is refused from
+  # the Mac even while the bridge logs "Server listening on port 8765" inside the container.
+  #
+  # Bridge networking is safe here: the whole pipeline runs in ONE container, so DDS never needs
+  # to cross a network boundary. It is also strictly better for isolation — separate `run`
+  # invocations can no longer see each other's nodes, which is the phantom-publisher problem
+  # host networking creates.
+  #
+  # Ports are only published when invoked with --service-ports:
+  #   docker compose -f docker/docker-compose.yml run --rm --service-ports viz \
+  #     bash -lc 'cd /workspace/ros2_ws && source install/setup.bash && \
+  #               ros2 launch kf_bringup full_pipeline.launch.py mode:=baseline foxglove:=true rate_scale:=0.125'
+  viz:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: kf-dev:humble
+    volumes:
+      - ..:/workspace:cached
+    working_dir: /workspace/ros2_ws
+    ports:
+      - "8765:8765"
     stdin_open: true
     tty: true

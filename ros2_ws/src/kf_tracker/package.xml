@@ -13,6 +13,9 @@
   <depend>eigen</depend>
   <depend>kf_common</depend>
   <depend>kf_msgs</depend>
+  <!-- builtin_interfaces/msg/time.hpp is included directly by detection_transform_node;
+       without this it resolves only transitively via kf_msgs. -->
+  <depend>builtin_interfaces</depend>
   <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>

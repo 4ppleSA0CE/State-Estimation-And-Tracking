@@ -1,0 +1,200 @@
+{
+  "configById": {
+    "3D!scene": {
+      "cameraState": {
+        "distance": 150,
+        "perspective": true,
+        "phi": 58,
+        "target": [0, 0, 0],
+        "targetOffset": [0, 0, 0],
+        "targetOrientation": [0, 0, 0, 1],
+        "thetaOffset": 45,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "followTf": "base_link",
+      "scene": {
+        "enableStats": false,
+        "backgroundColor": "#15151a",
+        "labelScaleFactor": 1,
+        "ignoreColladaUpAxis": false,
+        "meshUpAxis": "y_up",
+        "transforms": {
+          "showLabel": true,
+          "axisScale": 1.5,
+          "lineWidth": 2,
+          "editable": false
+        }
+      },
+      "transforms": {
+        "frame:map": { "visible": true },
+        "frame:base_link": { "visible": true },
+        "frame:map_bev": { "visible": false },
+        "frame:velodyne": { "visible": false }
+      },
+      "topics": {
+        "/viz/markers": { "visible": true },
+        "/viz/trails": { "visible": true },
+        "/velodyne_points": {
+          "visible": true,
+          "pointSize": 3,
+          "pointShape": "square",
+          "decayTime": 0,
+          "colorMode": "colormap",
+          "colorMap": "turbo",
+          "colorField": "z",
+          "minValue": -1.8,
+          "maxValue": 5,
+          "explicitAlpha": 1
+        }
+      },
+      "layers": {
+        "grid": {
+          "layerId": "foxglove.Grid",
+          "instanceId": "grid",
+          "label": "Ground grid (map)",
+          "visible": true,
+          "frameId": "map",
+          "size": 400,
+          "divisions": 80,
+          "lineWidth": 1,
+          "color": "#2f3540",
+          "position": [0, 0, 0],
+          "rotation": [0, 0, 0],
+          "order": 1
+        }
+      },
+      "publish": {
+        "type": "point",
+        "poseTopic": "/move_base_simple/goal",
+        "pointTopic": "/clicked_point",
+        "poseEstimateTopic": "/initialpose",
+        "poseEstimateXDeviation": 0.5,
+        "poseEstimateYDeviation": 0.5,
+        "poseEstimateThetaDeviation": 0.26179939
+      },
+      "imageMode": {}
+    },
+    "Image!camera": {
+      "cameraState": {
+        "distance": 20,
+        "perspective": false,
+        "phi": 0,
+        "target": [0, 0, 0],
+        "targetOffset": [0, 0, 0],
+        "targetOrientation": [0, 0, 0, 1],
+        "thetaOffset": 0,
+        "fovy": 45,
+        "near": 0.5,
+        "far": 5000
+      },
+      "followMode": "follow-pose",
+      "scene": {},
+      "transforms": {},
+      "topics": {},
+      "layers": {},
+      "publish": {},
+      "imageMode": {
+        "imageTopic": "/kitti/image_02/compressed",
+        "synchronize": false,
+        "rotation": 0,
+        "flipHorizontal": false,
+        "flipVertical": false
+      }
+    },
+    "Plot!egobias": {
+      "title": "ESKF accelerometer bias estimate [m/s^2]",
+      "paths": [
+        {
+          "value": "/ego/state.accel_bias.x",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "b_x  (the imu_bias run drives this)"
+        },
+        {
+          "value": "/ego/state.accel_bias.y",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "b_y"
+        },
+        {
+          "value": "/ego/state.accel_bias.z",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "b_z"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240
+    },
+    "Plot!egovel": {
+      "title": "Ego velocity in map frame [m/s]",
+      "paths": [
+        {
+          "value": "/ego/state.twist.linear.x",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "v_east"
+        },
+        {
+          "value": "/ego/state.twist.linear.y",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "v_north"
+        }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240
+    },
+    "RawMessages!tracks": {
+      "topicPath": "/tracks.tracks[0]",
+      "expansion": {
+        "id": "e",
+        "pose": "e",
+        "state": "e",
+        "mode_probabilities": "e"
+      },
+      "fontSize": 12
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": {
+    "direction": "row",
+    "first": {
+      "direction": "column",
+      "first": "3D!scene",
+      "second": "Image!camera",
+      "splitPercentage": 62
+    },
+    "second": {
+      "direction": "column",
+      "first": "Plot!egobias",
+      "second": {
+        "direction": "column",
+        "first": "Plot!egovel",
+        "second": "RawMessages!tracks",
+        "splitPercentage": 50
+      },
+      "splitPercentage": 34
+    },
+    "splitPercentage": 64
+  }
+}
