@@ -1,4 +1,4 @@
-"""Launch the ESKF node and KITTI replay for the Stage 1.4 parity check.
+"""Launch the ESKF node and KITTI replay for the KITTI parity check.
 
 Usage (in container):
     ros2 launch kf_bringup eskf_kitti.launch.py

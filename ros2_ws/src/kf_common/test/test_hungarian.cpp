@@ -1,6 +1,6 @@
 // gtest for rectangular optimal assignment. The Python side uses
 // scipy.optimize.linear_sum_assignment; this must produce the same TOTAL COST on every input and
-// the same pairing whenever the optimum is unique (see the tie caveat in the Stage 5B spec).
+// the same pairing whenever the optimum is unique (see the tie caveat in hungarian.hpp).
 #include <gtest/gtest.h>
 
 #include <algorithm>

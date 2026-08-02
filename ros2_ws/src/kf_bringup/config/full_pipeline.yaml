@@ -1,9 +1,10 @@
-# Stage 6 unified-pipeline parameters: eskf_node + detection_transform_node + tracker_node +
+# Unified-pipeline parameters: eskf_node + detection_transform_node + tracker_node +
 # pipeline_replay, all four blocks in one file so a reader sees the whole stack at once.
 #
 # The eskf_node and tracker_node blocks are copied VERBATIM from config/eskf_kitti.yaml and
-# config/tracker.yaml. That is the point: Stage 6 must run the same filters Stages 2 and 5B
-# validated, so a Stage 6 number is attributable to the coupling and not to a retuned filter.
+# config/tracker.yaml. That is the point: the coupled pipeline must run the same filters the
+# standalone ESKF and tracker parity gates validated, so a number measured here is attributable
+# to the coupling and not to a retuned filter.
 # If either of those files changes, this one changes with it.
 #
 # full_pipeline.launch.py layers the per-mode preset ON TOP of this file (later parameter
@@ -36,7 +37,7 @@ eskf_node:
     # GPS antenna lever arm in the body frame; default colocated.
     lever_xyz: [0.0, 0.0, 0.0]
 
-# --- new in Stage 6 -----------------------------------------------------------------------
+# --- coupling node, not present in the standalone launches -----------------------------------
 detection_transform_node:
   ros__parameters:
     ego_buffer_capacity: 512     # ~5 s of /ego/state at 100 Hz
@@ -58,19 +59,19 @@ tracker_node:
     greedy: false        # false = Hungarian, true = AB3DMOT-style greedy
     p0_vel: 10.0         # birth velocity variance (KittiTrackerConfig.p0_vel, not IMMConfig's)
 
-# --- new in Stage 6 -----------------------------------------------------------------------
+# --- coupled replay driver, not present in the standalone launches ---------------------------
 # Every parameter pipeline_replay declares, at its baseline value. Types must match the
 # declared defaults exactly (rclpy rejects an int override on a double parameter), which is why
 # every float carries a decimal point and every count does not.
 pipeline_replay:
   ros__parameters:
     cache_path:  "/workspace/data/cache/kitti_raw_2011_09_26_drive_0001_extract_oxts_v1.npz"
-    output_npz:  "/workspace/data/cache/stage6_baseline.npz"
+    output_npz:  "/workspace/data/cache/pipeline_baseline.npz"
     baseline_npz: ""           # "" = none; the launch passes one for every ratio-gated mode
-    mode: "baseline"           # validated against stage6_gates.MODES in the constructor
+    mode: "baseline"           # validated against failure_gates.MODES in the constructor
 
-    # Sensor stream — gps_std_m and gps_rate_divisor match kitti_replay so the Stage 2 GPS
-    # noise sequence is reproduced for the same seed.
+    # Sensor stream — gps_std_m and gps_rate_divisor match kitti_replay so the standalone
+    # ESKF replay's GPS noise sequence is reproduced for the same seed.
     gps_std_m:        0.75
     gps_rate_divisor: 10       # 100 Hz OXTS / 10 = 10 Hz GPS
     det_rate_divisor: 10       # 100 Hz OXTS / 10 = 10 Hz detections

@@ -1,4 +1,4 @@
-# EskfNode and KittiReplay parameters for the Stage 1.4 KITTI parity check.
+# EskfNode and KittiReplay parameters for the KITTI ESKF parity check.
 # Defaults match prototypes/python/eskf.py EskfConfig and kitti_highrate_loader defaults.
 
 eskf_node:

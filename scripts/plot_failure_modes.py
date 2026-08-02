@@ -1,14 +1,14 @@
-"""Render the six Stage 6 figures from the recorded per-mode runs.
+"""Render the six coupled-pipeline figures from the recorded per-mode runs.
 
 Runs on the HOST. matplotlib is not in the ROS2 image, so the container records the npz files and
 the host draws them — the same split scripts/plot_tracker_parity.py documents:
 
     # container:
-    python3 /workspace/scripts/run_stage6.py            -> data/cache/stage6_<mode>.npz
+    python3 /workspace/scripts/run_failure_modes.py     -> data/cache/pipeline_<mode>.npz
     # host, from the repo root:
-    python3 scripts/plot_stage6.py                      -> docs/images/stage6_<figure>.png
+    python3 scripts/plot_failure_modes.py               -> docs/images/<figure>.png
 
-Every metric on every figure comes from kf_bringup.stage6_gates — the same module pipeline_replay
+Every metric on every figure comes from kf_bringup.failure_gates — the same module pipeline_replay
 calls for its verdict — so a figure and its gate can never disagree. Each figure also carries the
 gate's own report lines as a footer, verbatim and unparsed, so the picture and the PASS/FAIL are
 read together.
@@ -33,13 +33,24 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 import matplotlib.pyplot as plt  # noqa: E402  after the backend is pinned
 
 ROOT = Path(__file__).resolve().parent.parent
-# APPEND, never insert, for the same reason scripts/run_stage6.py does: where a kf_bringup is
+# APPEND, never insert, for the same reason scripts/run_failure_modes.py does: where a kf_bringup is
 # already installed, that install is the one the pipeline ran, so it must win. On the host --
 # which is where this script belongs, matplotlib not being in the image -- nothing is
 # installed and the source tree below is what resolves.
 sys.path.append(str(ROOT / "ros2_ws" / "src" / "kf_bringup"))
 
-from kf_bringup import stage6_gates as gates  # noqa: E402  metrics shared with the live gate
+from kf_bringup import failure_gates as gates  # noqa: E402  metrics shared with the live gate
+
+# Figure name -> PNG stem. Listed explicitly rather than derived from the figure name: the
+# baseline is the reference run, not a failure, so it does not carry the `failure_` prefix.
+IMAGE_NAME = {
+    "baseline": "pipeline_baseline",
+    "gps_dropout": "failure_gps_dropout",
+    "imu_bias": "failure_imu_bias",
+    "maneuver": "failure_maneuver",
+    "det_dropout": "failure_det_dropout",
+    "clutter": "failure_clutter",
+}
 
 DEFAULT_CACHE = ROOT / "data" / "cache"
 DEFAULT_IMAGES = ROOT / "docs" / "images"
@@ -52,7 +63,7 @@ SHADE = {"color": "0.80", "alpha": 0.55, "zorder": 0, "lw": 0}
 # --------------------------------------------------------------------------------------------
 def load_run(mode: str, cache: Path) -> dict | None:
     """The recorded run as a plain dict. None if that mode was never run."""
-    path = cache / f"stage6_{mode}.npz"
+    path = cache / f"pipeline_{mode}.npz"
     if not path.exists():
         return None
     with np.load(path, allow_pickle=False) as npz:
@@ -67,7 +78,7 @@ def frames_s(run: dict) -> np.ndarray:
 def ego_err(run: dict) -> tuple[np.ndarray, np.ndarray]:
     """(frame-time-compatible seconds, horizontal ego error), aligned by the gate itself.
 
-    stage6_gates.ego_error has already proved every `/ego/state` stamp has an exact truth match
+    failure_gates.ego_error has already proved every `/ego/state` stamp has an exact truth match
     (it raises otherwise), so the ns -> float-second lookup below cannot miss.
     """
     stamps, err = gates.ego_error(run)
@@ -208,7 +219,7 @@ def _mode_series(run: dict, tid: int) -> tuple[np.ndarray, np.ndarray]:
 def _coupling_points(run: dict, window) -> tuple[np.ndarray, np.ndarray]:
     """The (ego error, mean matched track error) pairs the coupling gate correlates.
 
-    Mirrors stage6_gates.coupling_r's frame filter exactly — same window test against the float
+    Mirrors failure_gates.coupling_r's frame filter exactly — same window test against the float
     `frame_t` column, same exact-stamp ego lookup, same "no matched track excludes the frame" —
     so the scatter holds the frames the gate scored. `r` itself comes from the gate, never here.
     """
@@ -243,7 +254,7 @@ def _gate_text(mode: str, run: dict, baseline: dict | None = None) -> str:
         passed, lines = gates.evaluate(mode, run, baseline)
         head = f"{mode}: {'PASS' if passed else 'FAIL'}"
     except Exception as exc:                                   # noqa: BLE001 — diagnostic figure
-        print(f"WARNING: stage6_gates.evaluate({mode!r}) raised "
+        print(f"WARNING: failure_gates.evaluate({mode!r}) raised "
               f"{type(exc).__name__}: {exc}", file=sys.stderr)
         head, lines = f"{mode}: GATE ERROR", [f"{type(exc).__name__}: {exc}"]
     lines = list(lines)
@@ -287,7 +298,7 @@ def _save(fig, name: str, gate_texts: list[str], images: Path) -> Path:
     fig.tight_layout(rect=(0.0, reserved, 1.0, 1.0))
     fig.text(0.01, 0.006, text, fontsize=fontsize, family="monospace", va="bottom", ha="left")
     images.mkdir(parents=True, exist_ok=True)
-    out = images / f"stage6_{name}.png"
+    out = images / f"{IMAGE_NAME[name]}.png"
     fig.savefig(out, dpi=150)
     plt.close(fig)
     print(f"wrote {out}")
@@ -322,7 +333,7 @@ def fig_baseline(runs: dict, images: Path) -> Path:
 
     ax.set_xlabel("East [m]")
     ax.set_ylabel("North [m]")
-    ax.set_title(f"Stage 6 baseline — ego RMSE {gates.ego_rmse(run):.3f} m "
+    ax.set_title(f"Coupled-pipeline baseline — ego RMSE {gates.ego_rmse(run):.3f} m "
                  f"(ceiling {gates.BASELINE_EGO_RMSE_MAX:g}), "
                  f"track RMSE {gates.track_rmse(run):.3f} m "
                  f"(ceiling {gates.BASELINE_TRACK_RMSE_MAX:g})")
@@ -527,7 +538,7 @@ def fig_maneuver(runs: dict, images: Path) -> Path:
     ax2.grid(True, alpha=0.3)
     ax2.set_aspect("equal", adjustable="datalim")
 
-    # run_stage6.py hands every non-baseline launch the baseline npz, so pass it here too: the
+    # run_failure_modes.py hands every non-baseline launch the baseline npz, so pass it here too:
     # footer must be the verdict the live gate actually reached, not a re-derived one.
     return _save(fig, "maneuver", [_gate_text("maneuver", run, base)], images)
 
@@ -637,7 +648,7 @@ FIGURES = {
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        description="Render the Stage 6 figures from data/cache/stage6_*.npz (host-side).")
+        description="Render the pipeline figures from data/cache/pipeline_*.npz (host-side).")
     ap.add_argument("--only", metavar="FIGURE", choices=sorted(FIGURES),
                     help=f"render one figure: {', '.join(sorted(FIGURES))}")
     ap.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE,
@@ -655,15 +666,15 @@ def main(argv: list[str] | None = None) -> int:
         builder, required = FIGURES[name]
         missing = [m for m in required if runs.get(m) is None]
         if missing:
-            print(f"skipping stage6_{name}.png — no recorded run for {', '.join(missing)} "
-                  f"(expected {args.cache_dir}/stage6_{missing[0]}.npz)", file=sys.stderr)
+            print(f"skipping {IMAGE_NAME[name]}.png — no recorded run for {', '.join(missing)} "
+                  f"(expected {args.cache_dir}/pipeline_{missing[0]}.npz)", file=sys.stderr)
             skipped.append(name)
             continue
         builder({m: runs[m] for m in required}, args.out_dir)
 
     if skipped:
         print(f"\n{len(skipped)} figure(s) not rendered: {', '.join(skipped)}. "
-              f"Run scripts/run_stage6.py in the container first.", file=sys.stderr)
+              f"Run scripts/run_failure_modes.py in the container first.", file=sys.stderr)
         return 1
     return 0
 

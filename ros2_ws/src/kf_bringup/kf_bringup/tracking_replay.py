@@ -8,8 +8,7 @@ kitti_replay.py on the localization side.
 Gate, per frame: track ids EXACT, track state max-abs error < 1e-6. States are compared as
 id->state maps — publication order is deliberately not part of the contract. The 1e-6 bound is
 forced by unscented-weight conditioning in the CT mode, not by port quality; see "Why 1e-6, not
-1e-9" in docs/superpowers/plans/2026-07-27-stage-5b-kitti-tracker-cpp.md. Do not loosen it to make
-a run pass, and do not tighten it.
+1e-9" in the C++ tracker port plan. Do not loosen it to make a run pass, and do not tighten it.
 
 Exits 0 on PASS and non-zero on any failure (1 = parity/timeout, 2 = unusable reference) so the
 launch can be scripted.
@@ -393,8 +392,8 @@ class TrackingReplay(Node):
         if state_bad and not id_bad and not count_bad and not self._bad_state_len:
             log.error(
                 "state-only divergence: do NOT loosen STATE_TOL. See 'Why 1e-6, not 1e-9' in "
-                "docs/superpowers/plans/2026-07-27-stage-5b-kitti-tracker-cpp.md for the "
-                "suspect list, and re-check the provenance lines above against a freshly "
+                "the C++ tracker port plan for the suspect list, and re-check the provenance "
+                "lines above against a freshly "
                 f"generated reference ({GEN_CMD})."
             )
         return 1

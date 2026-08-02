@@ -1,12 +1,13 @@
-"""Stage 6 pass/fail gates evaluated over a recorded pipeline run.
+"""Failure-mode pass/fail gates evaluated over a recorded pipeline run.
 
 Pure numpy -- no ROS import anywhere -- so the gates unit-test on the host against hand-built
-arrays and `scripts/plot_stage6.py` can reuse them offline on a saved npz.
+arrays and `scripts/plot_failure_modes.py` can reuse them offline on a saved npz.
 
-A `run` is any mapping carrying the Stage 6 npz schema (an `np.load` NpzFile or a plain dict of
-arrays). Every stamp comparison uses the int64-nanosecond columns; the float-second columns are
-for plotting and for comparing against the injected dropout windows, never for keying -- float
-seconds do not compare equal and would send every alignment down a nearest-match path.
+A `run` is any mapping carrying the recorded-pipeline npz schema (an `np.load` NpzFile or a
+plain dict of arrays). Every stamp comparison uses the int64-nanosecond columns; the
+float-second columns are for plotting and for comparing against the injected dropout windows,
+never for keying -- float seconds do not compare equal and would send every alignment down a
+nearest-match path.
 
 House rule for every gate here: a gate that CANNOT be evaluated -- too few usable frames, a
 missing baseline run, no matched track anywhere -- returns False with the reason stated. It
@@ -196,8 +197,8 @@ def match_tracks(run, k: int) -> dict[int, tuple[int, float]]:
 
     Greedy nearest in the ENU ground plane, targets taken in index order, MATCH_GATE_M cutoff,
     one track used at most once, targets flagged not-visible skipped. Deliberately simpler than
-    the Stage 4 motmetrics path -- these are pass/fail signatures, not a benchmark. MOTA/MOTP
-    stays a Stage 7 concern.
+    the motmetrics path the synthetic tracker uses -- these are pass/fail signatures, not a
+    benchmark. MOTA/MOTP is out of scope here.
     """
     truth = np.asarray(run["target_truth_enu"], dtype=float)[k]
     visible = np.asarray(run["target_visible"], dtype=bool)[k]
@@ -669,6 +670,6 @@ def evaluate(mode: str, run, baseline=None) -> tuple[bool, list[str]]:
     A ratio gate called with baseline=None returns (False, [... requires a baseline run]).
     """
     if mode not in _GATES:
-        raise ValueError(f"unknown Stage 6 mode {mode!r}; expected one of {list(MODES)}")
+        raise ValueError(f"unknown failure mode {mode!r}; expected one of {list(MODES)}")
     passed, lines = _GATES[mode](mode, run, baseline)
     return bool(passed), list(lines)

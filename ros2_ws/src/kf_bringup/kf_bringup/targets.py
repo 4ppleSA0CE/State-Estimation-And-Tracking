@@ -1,4 +1,4 @@
-"""Stage 6 synthetic targets on the real KITTI ego path.
+"""Synthetic targets on the real KITTI ego path.
 
 Four vehicles are placed relative to the ground-truth ego pose at t0, then propagated in ENU
 by their own dynamics. Detections are produced by projecting ENU truth into base_link with the

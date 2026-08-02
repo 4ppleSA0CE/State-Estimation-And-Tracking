@@ -1,4 +1,4 @@
-"""Stage 6 live view: the real KITTI Velodyne scans, paced by the ego stream.
+"""Live view: the real KITTI Velodyne scans, paced by the ego stream.
 
 Started only by `full_pipeline.launch.py foxglove:=true`. Nothing in the gated path subscribes
 to /velodyne_points, so this node can never change a verdict; with foxglove:=false it is not
@@ -298,7 +298,7 @@ class LidarReplay(Node):
         self._last = index
         # A scan recorded BEFORE the replay's t=0 has a negative time on this base, and a ROS
         # stamp is unsigned -- _stamp_from_secs would assert. That happens whenever the OXTS
-        # cache starts partway into the drive the Velodyne came from (drive_0091 is the clean
+        # cache starts partway into the drive the Velodyne came from (drive_0009_tail is the clean
         # tail of drive_0009, so its first 19.15 s of scans predate t=0). Those scans are
         # genuinely outside the replay and must be skipped, not clamped to zero: clamping would
         # pile 19 s of stale geometry onto the first frame.

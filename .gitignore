@@ -49,3 +49,6 @@ data/kitti_raw/
 data/kitti_tracking/
 data/cache/
 data/**/*.npz
+
+# The writeup is kept locally, not in the repo: LaTeX sources, build byproducts and the PDF.
+docs/writeup/

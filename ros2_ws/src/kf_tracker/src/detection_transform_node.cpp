@@ -1,4 +1,4 @@
-// Stage 6 coupling node: base_link detections + the ESKF's estimated ego pose -> map_bev
+// Coupling node: base_link detections + the ESKF's estimated ego pose -> map_bev
 // detections. This is the step that makes localization error show up in object positions.
 //
 // ORDERING, which is the whole reason this node is not three lines:

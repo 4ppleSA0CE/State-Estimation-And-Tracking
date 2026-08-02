@@ -1,9 +1,8 @@
 """Write the ESKF Python reference trajectory (timestamps + x_est) for the C++ parity gate.
 
 The C++ ESKF node (kf_eskf) is validated against this reference by kitti_replay.py::_check_parity.
-The UKF reference is intentionally not generated here: the C++ UKF node is parked (see
-PROJECT_PRD.md Stage 3), so there is nothing to gate against. The Python UKF comparison lives in
-prototypes/python/ukf_kitti.py.
+The UKF reference is intentionally not generated here: the C++ UKF node was never built, so there
+is nothing to gate against. The Python UKF comparison lives in prototypes/python/ukf_kitti.py.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Host-side tests for the Stage 6 target simulator. Run from the repo root:
+"""Host-side tests for the synthetic target simulator. Run from the repo root:
     python3 -m pytest ros2_ws/src/kf_bringup/test -q
 """
 from __future__ import annotations

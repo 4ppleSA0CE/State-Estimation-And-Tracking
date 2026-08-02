@@ -1,7 +1,7 @@
 // gtest for association + the tracker lifecycle. Mirrors
 // prototypes/python/tests/test_association_from_cost.py and test_kitti_tracker.py.
 //
-// L1 from the Stage 5B plan applies with full force here: mutation testing proved that value
+// L1 from the C++ tracker port plan applies with full force here: mutation testing proved that value
 // assertions do not constrain structure. The tracker's step() is almost entirely ORDER and
 // COMPARISON DIRECTION, and both are invisible to a state pin — moving the cost-matrix build
 // ahead of the predict loop leaves every filtered number bit-identical and only changes which

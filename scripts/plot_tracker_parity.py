@@ -121,7 +121,7 @@ def _plot(got, ref) -> None:
     ax.plot([], [], "-", color="0.55", linewidth=2.5, label="Python reference (line)")
     ax.scatter([], [], s=20, c="C0", label="C++ tracker_node /tracks (points)")
     ax.set_xlabel("x [m]"); ax.set_ylabel("z [m]")
-    ax.set_title(f"Stage 5B parity — C++ tracker_node vs Python reference\n"
+    ax.set_title(f"Tracker parity — C++ tracker_node vs Python reference\n"
                  f"{n} frames, max-abs state error {errs.max():.3e} (gate {STATE_TOL:.0e})")
     ax.legend(loc="best"); ax.grid(True, alpha=0.3); ax.set_aspect("equal", adjustable="datalim")
 

@@ -4,7 +4,7 @@ The C++ tracker node (kf_tracker) is validated against this reference by
 ros2_ws/src/kf_bringup/kf_bringup/tracking_replay.py::_check_parity, mirroring how
 scripts/write_py_refs.py + kitti_replay.py gate the ESKF.
 
-The scenario is built here rather than in tracking/scenario_sim.py so no Stage 4 module changes:
+The scenario is built here rather than in tracking/scenario_sim.py so no prototype module changes:
 scenario_sim emits 2-D points, and this wraps them into Box3D detections with fixed car geometry.
 
 Validation runs on the exact cost matrices associate_from_cost solves, recorded in the same pass
@@ -266,7 +266,7 @@ def _run_pass(
                 )
             trk_count[k] = len(confirmed)
             # Snapshot NOW -- Track/IMM state mutates in place, so a deferred read returns the
-            # FINAL state for every frame (the Stage 4 bug; see docs/notes/tracking_imm_writeup.md).
+            # FINAL state for every frame (the snapshot bug; see docs/notes/tracking_imm_writeup.md).
             for j, t in enumerate(confirmed):
                 x, _p = t.imm.state()
                 trk_id[k, j] = t.id

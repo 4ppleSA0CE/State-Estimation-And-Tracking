@@ -32,8 +32,8 @@ using kf_tracker::PendingFrameQueue;
 using V = std::vector<int>;
 
 // Frame k is stamped 1000 s + 10 ms * k -- the pipeline's real 100 Hz IMU grid, expressed in
-// the int64 nanoseconds every Stage 6 stamp comparison uses. k may be negative: S5 needs a
-// frame that predates everything the ego buffer will ever hold.
+// the int64 nanoseconds every pipeline stamp comparison uses. k may be negative: S5 below needs
+// a frame that predates everything the ego buffer will ever hold.
 constexpr std::int64_t kBaseNs = 1000LL * 1000000000LL;
 constexpr std::int64_t kStepNs = 10LL * 1000000LL;
 

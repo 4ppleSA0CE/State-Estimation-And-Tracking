@@ -1,4 +1,4 @@
-"""Stage 6 live view: the real KITTI left colour camera, paced by the ego stream.
+"""Live view: the real KITTI left colour camera, paced by the ego stream.
 
 Started only by `full_pipeline.launch.py foxglove:=true`. Nothing in the gated path subscribes
 to it, so this node can never change a verdict; with foxglove:=false it is not launched at all
@@ -179,10 +179,10 @@ class ImageReplay(Node):
         # A frame recorded BEFORE the replay's t=0 has a negative time on this base, and a ROS
         # stamp is unsigned -- assigning one raises "The 'nanosec' field must be an unsigned
         # integer". That happens whenever the OXTS cache starts partway into the drive the images
-        # came from (drive_0091 is the clean tail of drive_0009, so its first 19.15 s of frames
-        # predate t=0), and also for drive_0001's own first two frames, whose camera leads its
-        # OXTS by 0.148 s. Those frames are genuinely outside the replay and must be skipped, not
-        # clamped to zero: clamping would pile stale video onto the first instant.
+        # came from (drive_0009_tail is the clean tail of drive_0009, so its first 19.4497 s of
+        # frames predate t=0), and also for drive_0001's own first two frames, whose camera
+        # leads its OXTS by 0.148 s. Those frames are genuinely outside the replay and must be
+        # skipped, not clamped to zero: clamping would pile stale video onto the first instant.
         if self._t[index] < 0.0:
             return
         self._publish(index)

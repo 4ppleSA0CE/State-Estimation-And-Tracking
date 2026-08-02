@@ -40,7 +40,7 @@ mode probabilities. Fixed to a plain block copy; `test_filter_invariants.py` now
 round trip and the CA state layout. Effect over 12 seeds: MOTP −0.031 m, IDF1 +0.026,
 ID-switches 5.0 → 4.1.
 
-On the Stage 0.5 scenario the standalone CA filter improves ~13% while the combined IMM barely
+On the synthetic scenario the standalone CA filter improves ~13% while the combined IMM barely
 moves, because mixing was already down-weighting the broken mode — 24-seed means:
 
 | | rmse_ca | rmse_imm |
@@ -79,9 +79,9 @@ state) is a noted future ablation; the ω-grid gap between bank members is its m
 ## Note for the C++ port
 Evaluation must snapshot each track's `(id, position)` at the frame it is produced — `Track`/IMM
 state mutates in place, so holding references and reading positions after the run yields every
-track's final state (a bug caught and fixed during this build). Stage 5's `kf_tracker` evaluator
+track's final state (a bug caught and fixed during this build). The `kf_tracker` evaluator
 faces the same trap.
 
 ## Next
-KITTI Tracking (real 3D boxes, 3D-IoU association, an AB3DMOT comparison) — Stage 5 prep — then
-the C++ ROS2 port (`kf_tracker`).
+KITTI Tracking (real 3D boxes, 3D-IoU association, an AB3DMOT comparison), then the C++ ROS2
+port (`kf_tracker`).

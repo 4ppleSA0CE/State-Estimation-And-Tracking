@@ -1,22 +1,23 @@
-"""Stage 6 unified pipeline: KITTI OXTS replay -> ESKF -> detection transform -> IMM tracker.
+"""Unified pipeline: KITTI OXTS replay -> ESKF -> detection transform -> IMM tracker.
 
-The whole point of the stage is the middle arrow: detection_transform_node converts base_link
-detections into map_bev with the ESKF's ESTIMATED ego pose, so localization error lands in the
-track positions. tracker_node reaches that stream by the launch-level remap below and is
-otherwise the same binary Stage 5B's parity gate validated.
+The whole point is the middle arrow: detection_transform_node converts base_link detections into
+map_bev with the ESKF's ESTIMATED ego pose, so localization error lands in the track positions.
+tracker_node reaches that stream by the launch-level remap below and is otherwise the same
+binary the standalone tracker parity gate validated.
 
 Usage (in container):
     ros2 launch kf_bringup full_pipeline.launch.py                     # mode:=baseline
     ros2 launch kf_bringup full_pipeline.launch.py mode:=gps_dropout \\
-        baseline_npz:=/workspace/data/cache/stage6_baseline.npz
+        baseline_npz:=/workspace/data/cache/pipeline_baseline.npz
     ros2 launch kf_bringup full_pipeline.launch.py mode:=baseline foxglove:=true
 
-Run the whole suite with scripts/run_stage6.py rather than by hand — six of the seven gates
+Run the whole suite with scripts/run_failure_modes.py rather than by hand — six of the seven gates
 need the baseline npz on disk first.
 
 The verdict is pipeline_replay's exit code (0 = the mode's gate passed). OnProcessExit logs it
-and tears the launch down; the gate's own `STAGE6 <mode>: PASS|FAIL` line comes from the node,
-never from this file, so a crash that prints no verdict is reported as MISSING by run_stage6.py
+and tears the launch down; the gate's own `GATE <mode>: PASS|FAIL` line comes from the node,
+never from this file, so a crash that prints no verdict is reported as MISSING by
+run_failure_modes.py
 instead of being dressed up as a FAIL here.
 
 Both this file and config/full_pipeline.yaml reach share/ only via setup.py, which lists data
@@ -61,7 +62,7 @@ DEFAULT_OXTS_TIMESTAMPS = ("/workspace/data/kitti_raw/2011_09_26/"
 
 # The seven failure modes, in one dict so a reader can see the whole suite at once. Each entry
 # is a pipeline_replay parameter override layered on top of config/full_pipeline.yaml, which
-# holds every baseline value. Design doc section 6; the mode names are stage6_gates.MODES.
+# holds every baseline value. The mode names are failure_gates.MODES.
 PRESETS = {
     "baseline":          {},
     "gps_dropout":       {"gps_dropout_s": [4.0, 8.0]},
@@ -137,7 +138,7 @@ def _pipeline(context, *_args, **_kwargs):
     )
 
     # The remap IS the coupling: tracker_node knows nothing about /ego/state and is not edited,
-    # so tracker_synthetic.launch.py and its 5B parity gate stay valid unchanged (spec D4).
+    # so tracker_synthetic.launch.py and its parity gate stay valid unchanged.
     tracker_params = [config]
     if TRACKER_OVERRIDES.get(mode):
         tracker_params.append(dict(TRACKER_OVERRIDES[mode]))
@@ -164,7 +165,7 @@ def _pipeline(context, *_args, **_kwargs):
                 # than pass baseline_npz:="" -- ros2launch.api.parse_launch_arguments rejects
                 # any token ending in ':=' with "malformed launch argument", which kills the
                 # launch before a node starts. Hence default_value="" below, and hence
-                # run_stage6.py appending the token only when it has a value.
+                # run_failure_modes.py appending the token only when it has a value.
                 "baseline_npz": LaunchConfiguration("baseline_npz").perform(context),
                 "rate_scale":   rate_scale,
                 **PRESETS[mode],
@@ -240,8 +241,8 @@ def _pipeline(context, *_args, **_kwargs):
     def on_replay_exit(event, _context):
         state["replay_done"] = True
         code = event.returncode
-        # Deliberately NOT formatted as "STAGE6 <mode>: PASS|FAIL": that string is the gate's
-        # own, and run_stage6.py greps for it. Re-emitting it here would turn a replay that
+        # Deliberately NOT formatted as "GATE <mode>: PASS|FAIL": that string is the gate's
+        # own, and run_failure_modes.py greps for it. Re-emitting it here would turn a replay that
         # crashed before evaluating anything (MISSING) into a confident-looking FAIL.
         verdict = "gate PASSED" if code == 0 else "gate FAILED (or the replay aborted)"
         return [
@@ -337,7 +338,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
         DeclareLaunchArgument(
             "output_npz",
-            default_value=["/workspace/data/cache/stage6_", LaunchConfiguration("mode"), ".npz"],
+            default_value=["/workspace/data/cache/pipeline_", LaunchConfiguration("mode"), ".npz"],
             description="Where pipeline_replay records this run.",
         ),
         DeclareLaunchArgument(

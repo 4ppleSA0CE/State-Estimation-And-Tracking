@@ -5,7 +5,7 @@
 // because IMU and GPS arrived on separate topics, whereas a detection frame is atomic.
 //
 // Tracking happens in the frame the detections arrive in -- no ego transform, no /ego/state
-// subscription. Transforming detections base_link->map is Stage 6's job (design doc decision D2),
+// subscription. Transforming detections base_link->map is detection_transform_node's job,
 // so the published TrackArray simply echoes the incoming header.
 //
 // Exception policy: rclcpp does NOT catch exceptions thrown out of a subscription callback -- they

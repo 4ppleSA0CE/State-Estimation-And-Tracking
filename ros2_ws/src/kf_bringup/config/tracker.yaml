@@ -1,4 +1,4 @@
-# TrackerNode and TrackingReplay parameters for the Stage 5B tracker parity gate.
+# TrackerNode and TrackingReplay parameters for the C++ tracker parity gate.
 # Defaults match prototypes/python/tracking/kitti_tracker.py (_default_imm + KittiTrackerConfig)
 # and prototypes/python/tracking/imm_filter.py (IMMConfig.pi_diag).
 

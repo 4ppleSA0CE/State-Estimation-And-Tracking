@@ -1,8 +1,8 @@
-"""Host-side tests for the Stage 6 gate evaluator. Fixtures are hand-built arrays -- these
+"""Host-side tests for the failure-mode gate evaluator. Fixtures are hand-built arrays -- these
 tests must never need a recorded run, or a gate regression hides behind missing data.
 
 Run from the repo root:
-    python3 -m pytest ros2_ws/src/kf_bringup/test/test_stage6_gates.py -q
+    python3 -m pytest ros2_ws/src/kf_bringup/test/test_failure_gates.py -q
 """
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from kf_bringup import stage6_gates  # noqa: E402
-from kf_bringup.stage6_gates import (  # noqa: E402
+from kf_bringup import failure_gates  # noqa: E402
+from kf_bringup.failure_gates import (  # noqa: E402
     COAST_REACQUIRE_MAX_M, COUPLING_MIN_FRAMES, MODES,
     _across_gap, _coupling_r, confirmed_track_ids, ego_error, evaluate, id_switches,
     match_tracks, track_error_series,
@@ -34,7 +34,7 @@ FAR_AWAY = (1000.0, 1000.0)     # where extra (clutter-born) tracks are parked
 
 
 # ---------------------------------------------------------------------------
-# Fixture builder -- every array of the Stage 6 npz schema, built by hand.
+# Fixture builder -- every array of the recorded-pipeline npz schema, built by hand.
 # ---------------------------------------------------------------------------
 
 def _make_run(
@@ -198,11 +198,11 @@ def test_pre_registered_thresholds_match_the_spec():
     """All 15 thresholds are pre-registered ceilings, so retuning one is a spec change, not a
     tuning knob. This test is what makes that true: it fails on any silent drift."""
     assert len(SPEC_THRESHOLDS) == 15
-    got = {name: getattr(stage6_gates, name) for name in SPEC_THRESHOLDS}
+    got = {name: getattr(failure_gates, name) for name in SPEC_THRESHOLDS}
     assert got == SPEC_THRESHOLDS
 
     # And no NEW threshold may be added to the module without being pinned here too.
-    exported = {n for n in stage6_gates.__all__ if n.isupper() and n != "MODES"}
+    exported = {n for n in failure_gates.__all__ if n.isupper() and n != "MODES"}
     assert exported - {"MODE_CV", "MODE_CA", "FIRST_CT_MODE", "X_ENU", "Y_ENU"} \
         == set(SPEC_THRESHOLDS)
 
@@ -708,7 +708,7 @@ def test_every_mode_name_is_handled():
         assert isinstance(passed, bool) and lines, mode
         assert all(ln.startswith(("[PASS]", "[FAIL]")) for ln in lines), mode
     for bogus in ("nonsense", "Baseline", "", "gps-dropout"):
-        with pytest.raises(ValueError, match="unknown Stage 6 mode"):
+        with pytest.raises(ValueError, match="unknown failure mode"):
             evaluate(bogus, run, base)
 
 
@@ -717,7 +717,7 @@ def test_gates_evaluate_identically_against_a_real_npz_file(tmp_path):
     `params_json` arrives as a 0-d '<U' array rather than a `str`, and every column as an array.
     Every other fixture here is an in-memory dict, so nothing else exercises that path."""
     run = _maneuver_run(50 + 15)                      # maneuver is the gate that reads params_json
-    path = tmp_path / "stage6_maneuver.npz"
+    path = tmp_path / "pipeline_maneuver.npz"
     np.savez_compressed(path, **run)
     with np.load(path, allow_pickle=False) as npz:
         assert np.asarray(npz["params_json"]).ndim == 0 and not isinstance(npz["params_json"], str)

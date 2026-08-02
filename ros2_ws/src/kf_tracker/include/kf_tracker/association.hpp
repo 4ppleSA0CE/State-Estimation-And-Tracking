@@ -10,7 +10,7 @@
 //
 // kf_common::hungarian throws std::invalid_argument on a non-finite cost matrix. That is
 // deliberately NOT caught here: policy for a bad frame lives at the ROS callback (see L4 in the
-// Stage 5B plan). big_cost is a large FINITE sentinel precisely so gating never trips it.
+// C++ tracker port plan). big_cost is a large FINITE sentinel precisely so gating never trips it.
 #ifndef KF_TRACKER_ASSOCIATION_HPP
 #define KF_TRACKER_ASSOCIATION_HPP
 

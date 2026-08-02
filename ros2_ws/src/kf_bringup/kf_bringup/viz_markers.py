@@ -1,4 +1,4 @@
-"""Stage 6 live view: /tracks + /detections_map + /targets/truth -> /viz/markers, /ego/state
+"""Live view: /tracks + /detections_map + /targets/truth -> /viz/markers, /ego/state
 plus the OXTS cache -> /viz/trails and the two ego cars.
 
 Started only by `full_pipeline.launch.py foxglove:=true`; nothing in the gated path consumes
@@ -26,7 +26,7 @@ Before this the ego was only the `base_link` TF triad: three thin axis lines a c
 long. Green target boxes 25 m away then float in a scene with no visible vehicle to be relative
 to, which is exactly as confusing as it sounds. A car-shaped box fixes it, and drawing the car
 TWICE -- once at the estimate, once at truth -- turns the localization error from a pair of
-curves into two vehicles pulling apart, which is the thing this whole stage is about.
+curves into two vehicles pulling apart, which is the thing the coupling is about.
 
 Geometry. The KITTI platform is a VW Passat B6 estate (4.77 x 1.82 x 1.52 m); this renders it as
 4.5 x 1.8 x 1.5 m, deliberately a touch short so the box reads as "the ego car" without
@@ -63,7 +63,7 @@ for estimate/truth from the trails, so the cars need no new one. A white segment
 box centres with the live horizontal error, in metres, printed at its midpoint: under
 `mode:=gps_dropout` the ESKF drifts to 4.49 m, and the number next to a visibly 4.5 m-long
 segment is what makes that read as a magnitude rather than as "a bit of a wobble". The error is
-the HORIZONTAL one (East/North, height excluded), which is stage6_gates' definition verbatim --
+the HORIZONTAL one (East/North, height excluded), which is failure_gates' definition verbatim --
 a number on screen that disagreed with the number in the gate report would be worse than none.
 
 Topic choice, deliberately: all three go on /viz/markers, WITH the DELETEALL and the 0.5 s
@@ -84,7 +84,7 @@ The ego trails, and why they are a SEPARATE topic (design doc section 5.5, exten
                   amber LINE_STRIP -- the OXTS TRUTH path over the same stamps
 
 Two live curves, one `map`-frame scene, and the gap between them IS the localization error the
-whole stage exists to make visible. Before this the driven path was only inferable from
+coupling exists to make visible. Before this the driven path was only inferable from
 Foxglove's TF parent-child connector line, which is a line between two frame ORIGINS, not a path.
 
 The trails cannot ride in the /viz/markers array. That array is led by a DELETEALL, and a
@@ -368,7 +368,7 @@ class VizMarkers(Node):
 
         The keys are built with the SAME `_stamp_from_secs` that stamps every published message,
         so an /ego/state stamp is looked up by exact int64 equality -- no nearest-match, matching
-        the discipline the rest of the stage keys on.
+        the discipline the rest of the pipeline keys on.
 
         The yaw column feeds the amber TRUTH CAR (the trail only ever needed a position). It is
         `roll_pitch_yaw[:, 2]`, the same OXTS heading pipeline_replay turns into the initial
@@ -556,7 +556,7 @@ class VizMarkers(Node):
         wire.points = _enu_wire(tx, ty, tz - EGO_GROUND_OFFSET_M, tyaw, length, width, height)
         out.append(wire)
 
-        # 3. The error, drawn AND printed. Horizontal (East/North) only, which is stage6_gates'
+        # 3. The error, drawn AND printed. Horizontal (East/North) only, which is failure_gates'
         # `_ego_series` definition verbatim -- an on-screen number that disagreed with the gate
         # report would be worse than no number. The segment joins the two ego ORIGINS, which sit
         # at the identical spot inside each car, so the drawn gap and the printed metres are the

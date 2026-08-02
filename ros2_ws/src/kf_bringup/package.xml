@@ -17,11 +17,15 @@
   <exec_depend>kf_msgs</exec_depend>
   <exec_depend>kf_eskf</exec_depend>
   <exec_depend>kf_tracker</exec_depend>
-  <!-- Stage 6 viz_markers: MarkerArray output plus the static map->map_bev transform.
-       Stage 6 lidar_replay: sensor_msgs/PointCloud2 (sensor_msgs is already declared above,
-       for kitti_replay's Imu) plus the static base_link->velodyne transform. -->
+  <!-- viz_markers: MarkerArray output plus the static map->map_bev transform.
+       lidar_replay: sensor_msgs/PointCloud2 (sensor_msgs is already declared above, for
+       kitti_replay's Imu) plus the static base_link->velodyne transform. -->
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
+  <!-- metrics.py uses scipy.stats.chi2 for the NEES/NIS consistency bands. The base ROS image
+       ships numpy but not scipy, so docker/Dockerfile apt-installs python3-scipy; declaring it
+       here is what makes a rosdep-based install anywhere else get it too. -->
+  <exec_depend>python3-scipy</exec_depend>
   <!-- full_pipeline.launch.py foxglove:=true launches foxglove_bridge. docker/Dockerfile
        apt-installs it, so the container happens to satisfy this already; declaring it is what
        makes a rosdep-based install anywhere else get it too. -->

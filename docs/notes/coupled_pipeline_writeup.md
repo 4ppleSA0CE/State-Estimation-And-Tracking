@@ -1,6 +1,6 @@
-# Stage 6 — End-to-End Pipeline and Failure-Mode Suite
+# End-to-End Pipeline and Failure-Mode Suite
 
-The two halves of the project become one stack. Until Stage 6, `kf_eskf` answered "where am
+The two halves of the project become one stack. Until now, `kf_eskf` answered "where am
 I?" and `kf_tracker` answered "where are they?" in two unrelated launches. Here the ESKF's
 ego estimate is the transform that converts `base_link` detections into world coordinates, so
 **localization error lands in the object positions** — and then the pipeline is broken in five
@@ -10,22 +10,32 @@ engineered ways and the damage is measured.
 
 - **Ego data:** KITTI Raw `2011_09_26` drive `0001`, unsynced high-rate OXTS extract
   (1166 samples, 11.65 s, ~100 Hz). The same stream, the same seeded `sigma = 0.75 m` GPS, and
-  the same `eskf_node` binary and config validated in Stage 2.
+  the same `eskf_node` binary and config validated by the standalone ESKF parity gate.
+- **Second OXTS extract, live view only — it feeds no gate on this page:**
+  `2011_09_26_drive_0009_tail_extract` (2750 samples, 27.49 s, 148.6 m of 3D path — 148.4 m
+  measured in the horizontal plane — and 91.6° between the minimum and maximum of the unwrapped
+  yaw, a net 77.3° first-to-last heading change). It is the clean tail of drive `0009`, cut at
+  that drive's sample 1930: drive `0009`'s own OXTS timestamps step *backward* by ~50 ms nine
+  times between samples 1873 and 1924, and the tail after them is strictly monotonic. It exists
+  because a longer path with a real corner is a better Foxglove demo than drive `0001`'s 11.65 s
+  straight line. (This drive was called `drive_0091` while this suite was first built. It was
+  renamed to `drive_0009_tail` because a real KITTI drive 0091 exists and the old name implied
+  data we never used.)
 - **Targets:** 4 synthetic KITTI-Car boxes (l=3.9, w=1.6, h=1.5 m) anchored to the *real* ego
   path — a lead vehicle, two oncoming, one crosser. KITTI Tracking is still not downloaded and
   `drive_0001` ships no tracklet labels, but synthetic targets are the better choice for this
-  stage anyway: target truth is exact, so the error a bad ego pose injects into track positions
-  is *measurable*, not merely visible.
+  experiment anyway: target truth is exact, so the error a bad ego pose injects into track
+  positions is *measurable*, not merely visible.
 - **Detector model, per frame in fixed order:** FOV/range gate (90°, 60 m) → Bernoulli
   `p_detect=0.9` → `N(0, 0.35 m)` position noise → `N(0, 0.03 rad)` yaw noise → Poisson clutter
   → shuffle. `object_id = -1` always; the true source id is recorded but never published.
   116 detection frames at 10 Hz, 0.10–11.60 s.
-- **Tracker:** `tracker_node` unchanged from Stage 5B — `dt=0.1`, IMM bank `{CV, CA, CT+0.2,
+- **Tracker:** `tracker_node` unchanged from the C++ port — `dt=0.1`, IMM bank `{CV, CA, CT+0.2,
   CT-0.2}`, 3D-IoU association (`iou_gate=0.01`, Hungarian), `min_hits=3`, `max_age=2`.
 
 `eskf_node.cpp` and `tracker_node.cpp` are **not modified**. The coupling is a new standalone
 node, and the tracker reaches the transformed stream by a launch-level remap
-(`/detections` → `/detections_map`), so Stage 5B's parity launch still exercises the same binary
+(`/detections` → `/detections_map`), so the tracker parity launch still exercises the same binary
 and still reports `PARITY PASS` at `state_max_abs_err = 7.387e-08` (tol 1e-6).
 
 ```
@@ -68,7 +78,7 @@ Three frames, and the permutation between the last two is the one place a silent
 convention: BEV is the `(x, z)` pair, `y` points down, and a box occupies `[y-h, y]`. `map_bev`
 is exactly the ENU frame written in that convention — the standard camera-vs-world relation,
 not an invention. Making the tracker's BEV axes configurable instead would have touched
-`box3d.hpp` and its gtests for a naming benefit, and put the 5B parity gate at risk.
+`box3d.hpp` and its gtests for a naming benefit, and put the tracker parity gate at risk.
 
 Given the estimate `t̂`, `R̂ = R(q̂)` and a detection at `p_b` with yaw `ψ_b` about body z:
 
@@ -118,12 +128,12 @@ neighbour. A detection frame whose ego stamp has not arrived is queued in FIFO o
 when it does. **The consequence, stated plainly: `/detections_map` lags `/detections` by one IMU
 step (10 ms).** Both `/tracks` and the recorder key off the detection stamp, so no metric moves;
 the pipeline is simply one IMU period behind live, which is what a serialized pipeline does
-anyway. Every alignment in the recorder and in `stage6_gates` uses the int64-nanosecond columns;
+anyway. Every alignment in the recorder and in `failure_gates` uses the int64-nanosecond columns;
 the float-second columns exist for plotting and for comparing against the injected windows only.
 
 ## Baseline
 
-![Stage 6 baseline: trajectory, tracks, per-frame track error](../images/stage6_baseline.png)
+![Baseline: trajectory, tracks, per-frame track error](../images/pipeline_baseline.png)
 
 Top panel: the ego truth (black) and ESKF estimate (dashed) are visually indistinguishable over
 the whole 150 m of travel; the four grey dashed target trajectories carry coloured track markers
@@ -131,9 +141,9 @@ where a confirmed track existed. Bottom panel: mean matched track error against 
 with the matched-target count on the right axis — 4 targets between ~1.2 and 2.7 s, dropping to
 1 after ~3.2 s as the oncoming and crossing targets leave the sensor wedge.
 
-- **ego RMSE 0.4189 m** over 1165 `/ego/state` samples (ceiling 1.0). This matches the Stage 1
-  Python ESKF's 0.41 m on the same drive — the coupling did not perturb localization, which is
-  the correct result, since `/ego/state` has no consumer that feeds back.
+- **ego RMSE 0.4189 m** over 1165 `/ego/state` samples (ceiling 1.0). This matches the Python
+  ESKF prototype's 0.41 m on the same drive — the coupling did not perturb localization, which
+  is the correct result, since `/ego/state` has no consumer that feeds back.
 - **track RMSE 0.5406 m** over every matched (frame, target) pair (ceiling 2.0).
 - **4/4 targets confirmed** at some point. Five confirmed ids for four targets: target 2 is
   picked up twice (id 4 for 4 frames, then id 5). Every baseline id matched a real target at
@@ -145,9 +155,9 @@ the drive without being loosened.
 
 ## GPS dropout, and the coupling proof
 
-This is the headline deliverable — the coupling deferred from Stage 5B.
+This is the headline deliverable — the coupling deferred when the tracker was ported to C++.
 
-![GPS dropout: ego drift, track error, and the coupling scatter](../images/stage6_gps_dropout.png)
+![GPS dropout: ego drift, track error, and the coupling scatter](../images/failure_gps_dropout.png)
 
 Three panels. Top: ego error, baseline in grey against the dropout run in red, with the 4–8 s
 suppression window shaded and the 2 s recovery window in green — the red trace climbs roughly
@@ -167,7 +177,7 @@ line with the least-squares fit through them.
 
 The fitted slope is **1.07 m of track error per m of ego error** — near unity, which is what a
 rigid-body transform of a detection by a displaced pose should give. Whole-run ego RMSE rises
-0.4189 → 1.4804 m, closely mirroring the 0.41 → 1.51 m the Stage 1 Python ESKF showed on the
+0.4189 → 1.4804 m, closely mirroring the 0.41 → 1.51 m the Python ESKF prototype showed on the
 same 4 s cut.
 
 ### The defect only the coupling gate catches
@@ -199,7 +209,7 @@ have anything to correlate against.
 `+0.100 m/s²` is added to the body-x accelerometer *measurement* for the whole run, exactly the
 way a real accelerometer offset appears to the filter.
 
-![IMU bias: b_x convergence against the baseline, and the ego error it costs](../images/stage6_imu_bias.png)
+![IMU bias: b_x convergence against the baseline, and the ego error it costs](../images/failure_imu_bias.png)
 
 Top panel: the estimated `b_x` for the injected run (blue) and for the zero-injection baseline
 (grey), against the injected `+0.100` dashed line. Both curves sit near zero until ~t=3.5 s,
@@ -235,7 +245,7 @@ and re-measure, not to relax the gate.
 
 ## Maneuver — CV to CT on the lead vehicle
 
-![Maneuver: IMM mode probabilities and the turning track](../images/stage6_maneuver.png)
+![Maneuver: IMM mode probabilities and the turning track](../images/failure_maneuver.png)
 
 Top panel: the four IMM mode probabilities for track 1 plus the black CT-aggregate the gate
 actually checks, with the onset marked at 5.10 s and the 20-frame gate window shaded. CV (blue)
@@ -253,7 +263,8 @@ and a red star at the first post-onset frame.
 
 The injected ω is 0.4 rad/s and the bank is `{+0.2, −0.2}`, so no bank member matches the truth;
 CT0 (+0.2, the correct sign) takes 0.9243 of the mass on its own. Model competition across a
-fixed ω grid handles an unknown turn rate — the same argument as Stage 4's fixed-ω bank.
+fixed ω grid handles an unknown turn rate — the same argument as the synthetic IMM's fixed-ω
+bank.
 
 **The maneuver subject had to move from target 3 to target 0.** The design first fired the
 maneuver on the crossing vehicle at 5 s, and the gate correctly reported "never matched": on the
@@ -277,7 +288,7 @@ frame there could never be transformed — hence 116 frames and counts one off f
 
 ## Detection dropout — an empty frame, not an absent one
 
-![Detection dropout: matched ids and re-acquisition under two max_age budgets](../images/stage6_det_dropout.png)
+![Detection dropout: matched ids and re-acquisition under two max_age budgets](../images/failure_det_dropout.png)
 
 Top panel: matched track id vs time for both runs over the same 1 s suppression window (shaded).
 Red dots and blue crosses sit on top of each other on ids 0, 1, 2, 4 and 5 up to the gap — the
@@ -321,7 +332,7 @@ produces the ID switch it is supposed to produce instead of also silently surviv
 
 ## Clutter — the one FAIL
 
-![Clutter: detections per frame and confirmed track count](../images/stage6_clutter.png)
+![Clutter: detections per frame and confirmed track count](../images/failure_clutter.png)
 
 Top panel: detections per frame, baseline in grey against the clutter run in red with the excess
 shaded pink — the red trace spikes to 8 where the baseline never exceeds 4. Bottom panel: tracks
@@ -429,11 +440,11 @@ node feeds a gate, so neither can change a verdict.
 
 ## Regression
 
-- **224 tests in-container** (`colcon test`), 0 failures — including the 91 `kf_tracker` gtests
-  and the new `ego_transform` / `pending_frames` suites.
-- `prototypes/python/tests`: **178 passed, 3 skipped** from the repo root.
+- **251 tests in-container** (`colcon test`), 0 failures — including the 91 `kf_tracker` gtests
+  and the `ego_transform` / `pending_frames` suites.
+- `prototypes/python/tests`: **179 passed, 2 skipped** from the repo root.
 - `tracker_synthetic.launch.py` still reports **PARITY PASS** at `state_max_abs_err = 7.387e-08`
-  (tol 1e-6) with exact track ids — the Stage 5B gate, unchanged.
+  (tol 1e-6) with exact track ids — the tracker parity gate, unchanged.
 
 `PendingFrameQueue` is a header-only, ROS-free class with 12 gtests rather than inline node
 logic, because a review seeded four defects into the inline version and **all four left
@@ -442,7 +453,7 @@ marshalling only.
 
 ## Reproduction
 
-Every number on this page comes from the seven `data/cache/stage6_<mode>.npz` files and can be
+Every number on this page comes from the seven `data/cache/pipeline_<mode>.npz` files and can be
 re-derived from them without re-running anything.
 
 **Re-derive every gate number in this note from the recorded npz files** (host, repo root):
@@ -451,8 +462,8 @@ re-derived from them without re-running anything.
 python3 -c "
 import sys; sys.path.append('ros2_ws/src/kf_bringup')
 import numpy as np
-from kf_bringup.stage6_gates import MODES, evaluate
-load = lambda m: dict(np.load(f'data/cache/stage6_{m}.npz'))
+from kf_bringup.failure_gates import MODES, evaluate
+load = lambda m: dict(np.load(f'data/cache/pipeline_{m}.npz'))
 base = load('baseline')
 for m in MODES:
     ok, lines = evaluate(m, load(m), None if m == 'baseline' else base)
@@ -465,12 +476,12 @@ for m in MODES:
 ```bash
 docker compose -f docker/docker-compose.yml run --rm dev bash -lc \
   'cd /workspace/ros2_ws && colcon build && source install/setup.bash && \
-   python3 /workspace/scripts/run_stage6.py'
-# -> data/cache/stage6_<mode>.npz x7 + a PASS/FAIL summary and every gate report line
+   python3 /workspace/scripts/run_failure_modes.py'
+# -> data/cache/pipeline_<mode>.npz x7 + a PASS/FAIL summary and every gate report line
 ```
 
 Modes run **sequentially, never in parallel**: they share one DDS domain and the `data/cache`
-paths, and six of the seven gates read `stage6_baseline.npz` as their reference, so `baseline`
+paths, and six of the seven gates read `pipeline_baseline.npz` as their reference, so `baseline`
 goes first. `--only <mode>` re-runs one against the baseline npz already on disk.
 
 **DDS hygiene.** Before re-launching after an interrupted run, kill any stale node:
@@ -480,26 +491,26 @@ pkill -f 'ros2 launch|pipeline_replay|eskf_node|tracker_node|detection_transform
 ```
 
 A leftover publisher from a killed launch is discovered by the next run as a live peer, and its
-messages land in the wrong npz. `run_stage6.py` starts each launch in its own session and
+messages land in the wrong npz. `run_failure_modes.py` starts each launch in its own session and
 `SIGKILL`s the whole process group on timeout for the same reason, and reports a timed-out run
 as `TIMEOUT` even if a `PASS` line was printed before the kill.
 
 **Redraw the six figures** (host — matplotlib is not in the ROS2 image):
 
 ```bash
-python3 scripts/plot_stage6.py                  # -> docs/images/stage6_<figure>.png
-python3 scripts/plot_stage6.py --only clutter   # one figure
+python3 scripts/plot_failure_modes.py                  # -> docs/images/<figure>.png
+python3 scripts/plot_failure_modes.py --only clutter    # one figure
 ```
 
-Every metric on every figure comes from `kf_bringup.stage6_gates`, the same module
+Every metric on every figure comes from `kf_bringup.failure_gates`, the same module
 `pipeline_replay` calls for its verdict, so a figure and its gate cannot disagree. Each figure
 also carries the gate's own report lines as a verbatim footer.
 
 **Host unit tests** (repo venv, repo root — `data/` paths are relative):
 
 ```bash
-python3 -m pytest ros2_ws/src/kf_bringup/test    # 95 passed: targets.py + stage6_gates
-python3 -m pytest prototypes/python/tests        # 178 passed, 3 skipped
+python3 -m pytest ros2_ws/src/kf_bringup/test    # 122 passed: targets, failure_gates, metrics
+python3 -m pytest prototypes/python/tests        # 179 passed, 2 skipped
 ```
 
 ## Next

@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libeigen3-dev \
     python3-colcon-common-extensions \
     python3-numpy \
+    python3-scipy \
     ros-humble-tf2-ros \
     ros-humble-foxglove-bridge \
     && rm -rf /var/lib/apt/lists/*

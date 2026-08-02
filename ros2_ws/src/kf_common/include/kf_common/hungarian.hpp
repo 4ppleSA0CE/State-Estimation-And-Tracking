@@ -4,7 +4,7 @@
 //
 // Returns assignment[row] = col, or -1 when a row is left unassigned (only possible when there
 // are more rows than columns). Any optimal assignment has the same total cost; when the optimum
-// is NOT unique the chosen pairing may differ from scipy's. The Stage 5B reference scenario is
+// is NOT unique the chosen pairing may differ from scipy's. The C++ parity reference scenario is
 // built tie-free so the parity gate can compare ids directly.
 #ifndef KF_COMMON_HUNGARIAN_HPP
 #define KF_COMMON_HUNGARIAN_HPP

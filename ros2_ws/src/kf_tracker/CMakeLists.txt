@@ -40,7 +40,7 @@ target_link_libraries(tracker_node kf_tracker kf_common::kf_common Eigen3::Eigen
 ament_target_dependencies(tracker_node rclcpp geometry_msgs std_msgs kf_msgs)
 install(TARGETS tracker_node DESTINATION lib/${PROJECT_NAME})
 
-# DetectionTransformNode: Stage 6 coupling -- base_link detections + /ego/state -> map_bev.
+# DetectionTransformNode: the ego/tracker coupling -- base_link detections + /ego/state -> map_bev.
 add_executable(detection_transform_node src/detection_transform_node.cpp)
 target_include_directories(detection_transform_node PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")

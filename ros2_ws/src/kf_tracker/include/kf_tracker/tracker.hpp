@@ -4,7 +4,7 @@
 // A 1:1 C++ port of prototypes/python/tracking/kitti_tracker.py. One deliberate structural
 // divergence: p0_vel lives ONLY on TrackerConfig. The Python has it on both IMMConfig and
 // KittiTrackerConfig with the tracker one silently shadowing the other, which is a trap, not a
-// feature (see L7 in the Stage 5B plan). No numeric effect.
+// feature (see L7 in the C++ tracker port plan). No numeric effect.
 #ifndef KF_TRACKER_TRACKER_HPP
 #define KF_TRACKER_TRACKER_HPP
 
@@ -97,7 +97,7 @@ class BoxTrack {
   }
 
   // A FRESH Box3D every call — never a reference into mutable filter state. Snapshotting the
-  // returned value at step time is what a consumer must do (L5 in the Stage 5B plan).
+  // returned value at step time is what a consumer must do (L5 in the C++ tracker port plan).
   Box3D box() const {
     Vector4d x;
     Matrix4d p;
@@ -146,7 +146,7 @@ class KittiTracker {
   // lifetime hazard explicit — THEY ARE INVALIDATED BY THE NEXT step() (tracks_ is erased from,
   // appended to, and may reallocate). A caller that wants per-frame results must copy
   // id / box() / immState() / modeProbabilities() immediately; holding the pointers and reading
-  // them later yields every track's FINAL state for every frame. That is the Stage 4 evaluation
+  // them later yields every track's FINAL state for every frame. That is the Python evaluator's
   // bug, and it cost a full debugging cycle.
   //
   // STEP ORDER IS LOAD-BEARING and must stay identical to KittiTracker.step in the Python:

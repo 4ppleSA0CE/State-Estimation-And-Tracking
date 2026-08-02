@@ -1,18 +1,19 @@
-"""Drive the seven Stage 6 failure-mode launches and summarise their verdicts.
+"""Drive the seven failure-mode launches of the coupled pipeline and summarise their verdicts.
 
 Runs INSIDE the ROS2 container — it needs `ros2 launch`. The figures are drawn on the HOST by
-scripts/plot_stage6.py, because matplotlib is not in the image. Same split that
+scripts/plot_failure_modes.py, because matplotlib is not in the image. Same split that
 scripts/plot_tracker_parity.py already documents.
 
     docker compose -f docker/docker-compose.yml run --rm dev bash -lc \\
-      'cd /workspace/ros2_ws && source install/setup.bash && python3 /workspace/scripts/run_stage6.py'
+      'cd /workspace/ros2_ws && source install/setup.bash && \\
+       python3 /workspace/scripts/run_failure_modes.py'
 
 Modes run SEQUENTIALLY and never in parallel: they share one DDS domain and the data/cache npz
-paths, and six of the seven gates read stage6_baseline.npz as their reference — so `baseline`
+paths, and six of the seven gates read pipeline_baseline.npz as their reference — so `baseline`
 goes first and the rest follow. `--only <mode>` re-runs a single one against the baseline npz
 already on disk.
 
-The verdict is the `STAGE6 <mode>: PASS|FAIL` line pipeline_replay prints, not the launch exit
+The verdict is the `GATE <mode>: PASS|FAIL` line pipeline_replay prints, not the launch exit
 code: `ros2 launch` also returns non-zero when an unrelated node crashes on teardown, and a run
 that emitted no verdict line at all must never be summarised as a pass. Both are reported, and a
 disagreement between them is called out rather than hidden.
@@ -38,15 +39,15 @@ ROOT = Path(__file__).resolve().parent.parent
 # nothing is installed.
 sys.path.append(str(ROOT / "ros2_ws" / "src" / "kf_bringup"))
 
-from kf_bringup.stage6_gates import MODES  # noqa: E402  the single source of the mode list
+from kf_bringup.failure_gates import MODES  # noqa: E402  the single source of the mode list
 
 BASELINE = "baseline"
 LAUNCH_FILE = "full_pipeline.launch.py"
 DEFAULT_OUT_DIR = ROOT / "data" / "cache"
 TAIL_LINES = 40
 
-# The launch prefixes every line ("[pipeline_replay-4] STAGE6 ..."), so match anywhere.
-_VERDICT_RE = re.compile(r"STAGE6\s+(\w+)\s*:\s*(PASS|FAIL)\b")
+# The launch prefixes every line ("[pipeline_replay-4] GATE ..."), so match anywhere.
+_VERDICT_RE = re.compile(r"GATE\s+(\w+)\s*:\s*(PASS|FAIL)\b")
 
 
 @dataclass
@@ -83,7 +84,7 @@ def _launch_cmd(mode: str, out_dir: Path, baseline_npz: str, extra: list[str]) -
     cmd = [
         "ros2", "launch", "kf_bringup", LAUNCH_FILE,
         f"mode:={mode}",
-        f"output_npz:={out_dir / f'stage6_{mode}.npz'}",
+        f"output_npz:={out_dir / f'pipeline_{mode}.npz'}",
     ]
     if baseline_npz:
         cmd.append(f"baseline_npz:={baseline_npz}")
@@ -108,9 +109,9 @@ def _run(cmd: list[str], timeout: float) -> tuple[int, str, bool]:
         return int(proc.returncode if proc.returncode is not None else -9), out, True
 
 
-def _stage6_lines(out: str) -> list[str]:
+def _gate_lines(out: str) -> list[str]:
     """The gate's own report lines, with the launch's node prefix trimmed off."""
-    return [line[line.index("STAGE6"):].rstrip() for line in out.splitlines() if "STAGE6" in line]
+    return [line[line.index("GATE"):].rstrip() for line in out.splitlines() if "GATE" in line]
 
 
 def _verdict(out: str, mode: str) -> str:
@@ -142,7 +143,7 @@ def _tail(out: str, n: int = TAIL_LINES) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
-        description="Run the Stage 6 failure-mode suite (inside the ROS2 container).")
+        description="Run the failure-mode suite (inside the ROS2 container).")
     ap.add_argument("--only", metavar="MODE", choices=MODES,
                     help="run a single mode instead of all seven; the baseline npz must "
                          "already exist for the ratio gates")
@@ -157,11 +158,11 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     if BASELINE not in MODES:
-        raise SystemExit(f"stage6_gates.MODES has no {BASELINE!r} entry: {MODES!r}")
+        raise SystemExit(f"failure_gates.MODES has no {BASELINE!r} entry: {MODES!r}")
 
     out_dir = args.output_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    baseline_npz = out_dir / f"stage6_{BASELINE}.npz"
+    baseline_npz = out_dir / f"pipeline_{BASELINE}.npz"
 
     # baseline first, then the rest in MODES order — six gates read the baseline npz.
     modes = [args.only] if args.only else [BASELINE] + [m for m in MODES if m != BASELINE]
@@ -181,17 +182,17 @@ def main(argv: list[str] | None = None) -> int:
         code, out, timed_out = _run(cmd, args.timeout)
         res = Result(mode=mode, code=code, verdict=_verdict(out, mode),
                      seconds=time.monotonic() - t0, timed_out=timed_out,
-                     lines=_stage6_lines(out))
+                     lines=_gate_lines(out))
         results.append(res)
 
         for line in res.lines:
             print(line)
         if timed_out:
             print(f"TIMEOUT after {args.timeout:.0f} s — process group killed. This run is NOT "
-                  f"a pass even if a PASS line was printed first: {out_dir}/stage6_{mode}.npz "
+                  f"a pass even if a PASS line was printed first: {out_dir}/pipeline_{mode}.npz "
                   f"may be truncated or missing.", file=sys.stderr)
         if res.verdict == "MISMATCH":
-            print(f"MISMATCH: launched {mode!r} but the only STAGE6 verdict line(s) name "
+            print(f"MISMATCH: launched {mode!r} but the only GATE verdict line(s) name "
                   f"{_verdict_names(out)} — the `mode` argument was most likely dropped or "
                   f"defaulted, so this is not a result for {mode!r}.", file=sys.stderr)
         if args.verbose:
@@ -204,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
                   file=sys.stderr)
 
     width = max(len(r.mode) for r in results)
-    print("\n=== Stage 6 summary ===")
+    print("\n=== failure-mode summary ===")
     print(f"{'mode':<{width}}  {'exit':>4}  {'verdict':<8} {'sec':>7}")
     for r in results:
         # A timed-out run is shown as TIMEOUT, never as the verdict it happened to print
@@ -219,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
     print("\n=== gate reports ===")
     for r in results:
         print(f"[{r.mode}]")
-        for line in r.lines or ["(no STAGE6 output — the replay never reached its verdict)"]:
+        for line in r.lines or ["(no GATE output — the replay never reached its verdict)"]:
             print(f"  {line}")
 
     if failed:
